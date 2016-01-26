@@ -1,11 +1,7 @@
 from serial.serialutil import SerialException
-
 from plugwise.api import *
-
 from datetime import datetime, timedelta
-import time, calendar, os, logging
-
-import json
+import time, calendar, os, logging, json
 
 json.encoder.FLOAT_REPR = lambda f: ("%.2f" % f)
 
@@ -14,18 +10,7 @@ def get_now():
     return datetime.utcnow()-timedelta(seconds=time.timezone)
 
 def get_timestamp():
-    if epochf:
-        return str(calendar.timegm(datetime.utcnow().utctimetuple()))
-    else:
-        return get_now().isoformat()
-        # t = datetime.time(datetime.utcnow()-timedelta(seconds=time.timezone))
-        # return 3600*t.hour+60*t.minute+t.second
-
-
-def jsondefault(o):
-    return o.__dict__
-
-log_comm(False)
+    return get_now().isoformat()
 
 cfg = json.load(open("config/pw-hostconfig.json"))
 
@@ -38,44 +23,44 @@ for path in [tmppath,datapath,logpath]:
         os.makedirs(path)
 
 port = cfg['serial']
-epochf = cfg.has_key('log_format') and cfg['log_format'] == 'epoch'
 
 open_logcomm(logpath+"pw-communication.log")
+
+#set log settings
+if cfg.has_key('log_comm'):
+    log_comm(cfg['log_comm'].strip().lower() == 'yes')
+if cfg.has_key('log_level'):
+    if cfg['log_level'].strip().lower() == 'debug':
+        log_level(logging.DEBUG)
+    elif cfg['log_level'].strip().lower() == 'info':
+        log_level(logging.INFO)
+    elif cfg['log_level'].strip().lower() == 'error':
+        log_level(logging.ERROR)
+    else:
+        log_level(logging.INFO)
 
 class PWControl(object):
 
     def __init__(self):
 
-        self.device = Stick(port, timeout=1)
-        self.staticconfig_fn = 'config/pw-conf.json'
-        self.control_fn = 'config/pw-control.json'
-
-        self.last_control_ts = None
-
-        self.circles = []
-        self.controls = []
-        self.controlsjson = dict()
-        self.save_controls = False
-        
-        self.bymac = dict()
-        self.byname = dict()
-
         self.curfile = open(tmppath+'pwpower.log', 'w')
         self.statusfile = open(tmppath+'pw-status.json', 'w')
         self.statusdumpfname = tmppath+'pw-statusdump.json'
-        self.actfiles = dict()
+        self.logfiles = dict()
         self.logfnames = dict()
         self.daylogfnames = dict()
         self.lastlogfname = datapath+'pwlastlog.log'
 
         #read the static configuration
-        sconf = json.load(open(self.staticconfig_fn))
+        self.circles = []
+        self.bymac = dict()
+        self.device = Stick(port, timeout=1)
+        sconf = json.load(open('config/pw-conf.json'))
         for i,item in enumerate(sconf['static']):
             #remove tabs which survive dialect='trimmed'
             for key in item:
                 if isinstance(item[key],str): item[key] = item[key].strip()
-            self.bymac[item.get('mac')]=i
-            self.byname[item.get('name')]=i
+            self.bymac[str(item.get('mac'))]=i
             #exception handling timeouts done by circle object for init
             self.circles.append(Circle(item['mac'], self.device, item))
             self.set_interval_production(self.circles[-1])
@@ -86,9 +71,6 @@ class PWControl(object):
             else:
                 print("!! failed to add circle %s" % (self.circles[-1].short_mac(),))
 
-        #self.try_connect_missing_nodes()
-        #return
-        
         #retrieve last log addresses from persistent storage
         with open(self.lastlogfname, 'a+') as f:
             f.seek(0)
@@ -112,8 +94,16 @@ class PWControl(object):
                     self.circles[self.bymac[mac]].cum_energy = cum_energy
                 except:
                     error("PWControl.__init__(): lastlog mac not found in circles")
-         
-        self.poll_configuration()
+
+        self.setup_logfiles()
+
+        # self.controls = []
+        # self.controlsbymac = dict()
+        # def_item = {'switch_state':'on','name':'circle','savelog':'no','monitor':'yes'}
+        # for circle in self.circles:
+        #     def_item['mac'] = circle.mac
+        #     self.controlsbymac[circle.mac] = len(self.controls)
+        #     self.controls.append(def_item.copy())
 
     def try_connect_missing_nodes(self):
         for c in self.circles:
@@ -122,18 +112,9 @@ class PWControl(object):
         print("still offline:")
         print([c.short_mac() for c in self.circles if not c.online])
 
-    def get_status_json(self, mac):
+    def get_status_json(self, c): #c: circle
         try:
-            c = self.circles[self.bymac[mac]]
-            control = self.controls[self.controlsbymac[mac]]
-        except:
-            info("get_status_json: mac not found in circles or controls")
-            return ""
-        try:
-            status = c.get_status()
-            status["monitor"] = (control['monitor'].lower() == 'yes')
-            status["savelog"] = (control['savelog'].lower() == 'yes')
-            msg = json.dumps(status)
+            msg = json.dumps(c.get_status())
         except (ValueError, TimeoutException, SerialException) as reason:
             error("Error in get_status_json: %s" % (reason,))
             msg = ""
@@ -149,7 +130,7 @@ class PWControl(object):
                 self.statusfile.write(",\n")
             else:
                 comma = True
-            self.statusfile.write(self.get_status_json(c.mac))
+            self.statusfile.write(self.get_status_json(c))
         self.statusfile.write('\n] }\n')
         self.statusfile.flush()
         
@@ -162,7 +143,7 @@ class PWControl(object):
                 self.statusdumpfile.write(",\n")
             else:
                 comma = True
-            json.dump(c.dump_status(), self.statusdumpfile, default = jsondefault)
+            json.dump(c.dump_status(), self.statusdumpfile, default=lambda o: o.__dict__)
         self.statusdumpfile.write('\n] }\n')
         self.statusdumpfile.close()
     
@@ -189,57 +170,17 @@ class PWControl(object):
         except (ValueError, TimeoutException, SerialException) as reason:
             error("Error in set_interval_production: %s" % (reason,))
 
-    def read_apply_controls(self):
-        debug("read_apply_controls")
-        #read the user control settings
-        controls = json.load(open('config/pw-control.json'))
-        self.controlsjson = controls
-        self.controlsbymac = dict()
-        newcontrols = []        
 
-        for i,item in enumerate(controls['dynamic']):
-            #remove tabs which survive dialect='trimmed'
-            for key in item:
-                if isinstance(item[key],str): item[key] = item[key].strip()
-            newcontrols.append(item)
-            self.controlsbymac[item['mac']]=i
-
-        #set log settings
-        if controls.has_key('log_comm'):
-            log_comm(controls['log_comm'].strip().lower() == 'yes')
-        if controls.has_key('log_level'):
-            if controls['log_level'].strip().lower() == 'debug':
-                log_level(logging.DEBUG)
-            elif controls['log_level'].strip().lower() == 'info':
-                log_level(logging.INFO)
-            elif controls['log_level'].strip().lower() == 'error':
-                log_level(logging.ERROR)
-            else:
-                log_level(logging.INFO)
-
-        def_item = {'switch_state':'on','name':'circle','savelog':'no','monitor':'yes'}
-        for circle in self.circles:
-            if not circle.mac in self.controlsbymac:
-                def_item['mac'] = circle.mac
-                self.controlsbymac[circle.mac] = len(newcontrols)
-                newcontrols.append(def_item.copy())
-
-        self.controls =  newcontrols
-
-    def setup_actfiles(self):
-        
+    def setup_logfiles(self):
         #close all open act files
-        for m, f in self.actfiles.iteritems():
+        for m, f in self.logfiles.iteritems():
             f.close()
-        #open actfiles according to (new) config
-        self.actfiles = dict()
-        now = get_now()
-        today = now.date().isoformat()
-        for mac, idx in self.controlsbymac.iteritems():
-            if self.controls[idx]['monitor'].lower() == 'yes':
-                fname = datapath + today + '_' + mac + '.log'
-                f = open(fname, 'a')
-                self.actfiles[mac]=f
+        #open logfiles
+        self.logfiles = dict()
+        today = get_now().date().isoformat()
+        for c in self.circles:
+            self.logfiles[c.mac] = open(datapath + today + '_' + c.mac + '.log', 'a')
+
 
     def test_mtime(self, before, after):
         modified = []
@@ -248,28 +189,6 @@ class PWControl(object):
                 if (after.has_key(bf) and after[bf] > bmod):
                     modified.append(bf)
         return modified
-     
-    def poll_configuration(self):
-        debug("poll_configuration()")
-
-        if self.last_control_ts != os.stat(self.control_fn).st_mtime:
-            self.last_control_ts = os.stat(self.control_fn).st_mtime
-            self.read_apply_controls()
-            self.setup_actfiles()
-            #self.setup_logfiles()            
-        #failure to apply control settings to a certain circle results
-        #in offline state for that circle, so it get repaired when the
-        #self.test_offline() method detects it is back online
-        #a failure to load a schedule data also results in online = False,
-        #and recovery is done by the same functions.
-
-
-    def write_control_file(self):
-        #write control file for testing purposes
-        fjson = open("config/pw-control.json", 'w')
-        self.controlsjson['dynamic'] = self.controls
-        json.dump(self.controlsjson, fjson)
-        fjson.close()
      
     def ten_seconds(self):
         """
@@ -280,7 +199,7 @@ class PWControl(object):
 
         self.curfile.seek(0)
         self.curfile.truncate(0)
-        for mac, f in self.actfiles.iteritems():
+        for mac, f in self.logfiles.iteritems():
             try:
                 c = self.circles[self.bymac[mac]]                
             except:
@@ -324,231 +243,227 @@ class PWControl(object):
         self.curfile.flush()
         return
 
-    def log_recording(self, control, mac):
+    def log_recording(self, circle):
         """
         Failure to read recordings for a circle will prevent writing any new
         history data to the log files. Also the counter in the counter file is not
         updated. Consequently, at the next call (one hour later) reading the  
         history is retried.
         """
+        return False
         fileopen = False
-        if True: #control['savelog'].lower() == 'yes':
-            info("%s: save log " % (mac,))
-            try:
-                c = self.circles[self.bymac[mac]]
-            except:
-                error("mac from controls not found in circles")
-                return
-            if not c.online:
-                return
-            
-            #figure out what already has been logged.
-            try:
-                c_info = c.get_info()
-                #update c.power fields for administrative purposes
-                c.get_power_usage()
-            except ValueError:
-                return
-            except (TimeoutException, SerialException) as reason:
-                error("Error in log_recording() get_info: %s" % (reason,))
-                return
-            last = c_info['last_logaddr']
-            first = c.last_log
-            idx = c.last_log_idx
-            if c.last_log_ts != 0:
-                last_dt = datetime.utcfromtimestamp(c.last_log_ts)-timedelta(seconds=time.timezone)
-            else:
-                last_dt = None
+        c = circle
+        mac = c.mac
+        if not c.online:
+            return
 
-            if last_dt ==None:
-                debug("start with first %d, last %d, idx %d, last_dt None" % (first, last, idx))
+        #figure out what already has been logged.
+        try:
+            c_info = c.get_info()
+            #update c.power fields for administrative purposes
+            c.get_power_usage()
+        except ValueError:
+            return
+        except (TimeoutException, SerialException) as reason:
+            error("Error in log_recording() get_info: %s" % (reason,))
+            return
+        last = c_info['last_logaddr']
+        first = c.last_log
+        idx = c.last_log_idx
+        if c.last_log_ts != 0:
+            last_dt = datetime.utcfromtimestamp(c.last_log_ts)-timedelta(seconds=time.timezone)
+        else:
+            last_dt = None
+
+        if last_dt ==None:
+            debug("start with first %d, last %d, idx %d, last_dt None" % (first, last, idx))
+        else:
+            debug("start with first %d, last %d, idx %d, last_dt %s" % (first, last, idx, last_dt.strftime("%Y-%m-%d %H:%M")))
+        #check for buffer wrap around
+        #The last log_idx is 6015. 6016 is for the range function
+        if last < first:
+            if (first == 6015 and idx == 4) or first >= 6016:
+                first = 0
             else:
-                debug("start with first %d, last %d, idx %d, last_dt %s" % (first, last, idx, last_dt.strftime("%Y-%m-%d %H:%M")))
-            #check for buffer wrap around
-            #The last log_idx is 6015. 6016 is for the range function
-            if last < first:
-                if (first == 6015 and idx == 4) or first >= 6016:
-                    first = 0
-                else:
-                    #last = 6016
-                    #TODO: correct if needed
-                    last = 6015
-            log = []
-            try:
-                #read one more than request to determine interval of first measurement
-                #TODO: fix after reading debug log
-                if last_dt == None:
-                    if first>0:
-                        powlist = c.get_power_usage_history(first-1)
-                        last_dt = powlist[3][0]
-                        #The unexpected case where both consumption and production are logged
-                        #Probably this case does not work at all
-                        if powlist[1][0]==powlist[2][0]:
-                           #not correct for out of sync usage and production buffer
-                           #the returned value will be production only
-                           last_dt=powlist[2][0]
-                        debug("determine last_dt - buffer dts: %s %s %s %s" %
-                            (powlist[0][0].strftime("%Y-%m-%d %H:%M"),
-                            powlist[1][0].strftime("%Y-%m-%d %H:%M"),
-                            powlist[2][0].strftime("%Y-%m-%d %H:%M"),
-                            powlist[3][0].strftime("%Y-%m-%d %H:%M")))
-                    elif first == 0:
-                        powlist = c.get_power_usage_history(0)
-                        if len(powlist) > 2 and powlist[0][0] is not None and powlist[1][0] is not None:
-                            last_dt = powlist[0][0]
-                            #subtract the interval between index 0 and 1
-                            last_dt -= powlist[1][0] - powlist[0][0]
+                #last = 6016
+                #TODO: correct if needed
+                last = 6015
+        log = []
+        try:
+            #read one more than request to determine interval of first measurement
+            #TODO: fix after reading debug log
+            if last_dt == None:
+                if first>0:
+                    powlist = c.get_power_usage_history(first-1)
+                    last_dt = powlist[3][0]
+                    #The unexpected case where both consumption and production are logged
+                    #Probably this case does not work at all
+                    if powlist[1][0]==powlist[2][0]:
+                       #not correct for out of sync usage and production buffer
+                       #the returned value will be production only
+                       last_dt=powlist[2][0]
+                    debug("determine last_dt - buffer dts: %s %s %s %s" %
+                        (powlist[0][0].strftime("%Y-%m-%d %H:%M"),
+                        powlist[1][0].strftime("%Y-%m-%d %H:%M"),
+                        powlist[2][0].strftime("%Y-%m-%d %H:%M"),
+                        powlist[3][0].strftime("%Y-%m-%d %H:%M")))
+                elif first == 0:
+                    powlist = c.get_power_usage_history(0)
+                    if len(powlist) > 2 and powlist[0][0] is not None and powlist[1][0] is not None:
+                        last_dt = powlist[0][0]
+                        #subtract the interval between index 0 and 1
+                        last_dt -= powlist[1][0] - powlist[0][0]
+                    else:
+                        #last_dt cannot be determined yet. wait for 2 hours of recordings. return.
+                        info("log_recording: last_dt cannot be determined. circles did not record data yet.")
+                        return
+
+            #loop over log addresses and write to file
+            for log_idx in range(first, last+1):
+                buffer = c.get_power_usage_history(log_idx, last_dt)
+                idx = idx % 4
+                debug("len buffer: %d, production: %s" % (len(buffer), c.production))
+                for i, (dt, watt, watt_hour) in enumerate(buffer):
+                    if i >= idx and not dt is None and dt >= last_dt:
+                        #if the timestamp is identical to the previous, add production to usage
+                        #in case of hourly production logging, and end of daylightsaving, duplicate
+                        #timestamps can be present for two subsequent hours. Test the index
+                        #to be odd handles this.
+                        idx = i + 1
+                        if dt == last_dt and c.production == True and i & 1:
+                            tdt, twatt, twatt_hour = log[-1]
+                            twatt+=watt
+                            twatt_hour+=watt_hour
+                            log[-1]=[tdt, twatt, twatt_hour]
                         else:
-                            #last_dt cannot be determined yet. wait for 2 hours of recordings. return.
-                            info("log_recording: last_dt cannot be determined. circles did not record data yet.")
-                            return
-                       
-                #loop over log addresses and write to file
-                for log_idx in range(first, last+1):
-                    buffer = c.get_power_usage_history(log_idx, last_dt)
-                    idx = idx % 4
-                    debug("len buffer: %d, production: %s" % (len(buffer), c.production))
-                    for i, (dt, watt, watt_hour) in enumerate(buffer):
-                        if i >= idx and not dt is None and dt >= last_dt:
-                            #if the timestamp is identical to the previous, add production to usage
-                            #in case of hourly production logging, and end of daylightsaving, duplicate
-                            #timestamps can be present for two subsequent hours. Test the index
-                            #to be odd handles this.
-                            idx = i + 1
-                            if dt == last_dt and c.production == True and i & 1:
-                                tdt, twatt, twatt_hour = log[-1]
-                                twatt+=watt
-                                twatt_hour+=watt_hour
-                                log[-1]=[tdt, twatt, twatt_hour]
-                            else:
-                                log.append([dt, watt, watt_hour])
-                            info("circle buffers: %s %d %s %d %d" % (mac, log_idx, dt.strftime("%Y-%m-%d %H:%M"), watt, watt_hour))
-                            debug("proce with first %d, last %d, idx %d, last_dt %s" % (first, last, idx, last_dt.strftime("%Y-%m-%d %H:%M")))
-                            last_dt = dt
+                            log.append([dt, watt, watt_hour])
+                        info("circle buffers: %s %d %s %d %d" % (mac, log_idx, dt.strftime("%Y-%m-%d %H:%M"), watt, watt_hour))
+                        debug("proce with first %d, last %d, idx %d, last_dt %s" % (first, last, idx, last_dt.strftime("%Y-%m-%d %H:%M")))
+                        last_dt = dt
 
-                # if idx < 4:
-                    # #not completely read yet.
+            # if idx < 4:
+                # #not completely read yet.
+                # last -= 1
+            # if idx >= 4:
+                # #not completely read yet.
+                # last += 1
+            #idx = idx % 4
+                # #TODO: buffer is also len=4 for production?
+                # if len(buffer) == 4 or (len(buffer) == 2 and c.production == True):
+                    # for i, (dt, watt, watt_hour) in enumerate(buffer):
+                        # if not dt is None:
+                            # #if the timestamp is identical to the previous, add production to usage
+                            # #in case of hourly production logging, and end of daylightsaving, duplicate
+                            # #timestamps can be present for two subsequent hours. Test the index
+                            # #to be odd handles this.
+                            # if dt == last_dt and c.production == True and i & 1:
+                                # tdt, twatt, twatt_hour = log[-1]
+                                # twatt+=watt
+                                # twatt_hour+=watt_hour
+                                # log[-1]=[tdt, twatt, twatt_hour]
+                            # else:
+                                # log.append([dt, watt, watt_hour])
+                            # debug("circle buffers: %s %d %s %d %d" % (mac, log_idx, dt.strftime("%Y-%m-%d %H:%M"), watt, watt_hour))
+                        # last_dt = dt
+                # else:
                     # last -= 1
-                # if idx >= 4:
-                    # #not completely read yet.
-                    # last += 1
-                #idx = idx % 4    
-                    # #TODO: buffer is also len=4 for production?
-                    # if len(buffer) == 4 or (len(buffer) == 2 and c.production == True):
-                        # for i, (dt, watt, watt_hour) in enumerate(buffer):
-                            # if not dt is None:
-                                # #if the timestamp is identical to the previous, add production to usage
-                                # #in case of hourly production logging, and end of daylightsaving, duplicate
-                                # #timestamps can be present for two subsequent hours. Test the index
-                                # #to be odd handles this.
-                                # if dt == last_dt and c.production == True and i & 1:
-                                    # tdt, twatt, twatt_hour = log[-1]
-                                    # twatt+=watt
-                                    # twatt_hour+=watt_hour
-                                    # log[-1]=[tdt, twatt, twatt_hour]
-                                # else:
-                                    # log.append([dt, watt, watt_hour])
-                                # debug("circle buffers: %s %d %s %d %d" % (mac, log_idx, dt.strftime("%Y-%m-%d %H:%M"), watt, watt_hour))
-                            # last_dt = dt
-                    # else:
-                        # last -= 1
-            except ValueError:
-                return
-                #error("Error: Failed to read power usage")
-            except (TimeoutException, SerialException) as reason:
-                #TODO: Decide on retry policy
-                #do nothing means that it is retried after one hour (next call to this function).
-                error("Error in log_recording() wile reading history buffers - %s" % (reason,))
-                return
-                
-            debug("end   with first %d, last %d, idx %d, last_dt %s" % (first, last, idx, last_dt.strftime("%Y-%m-%d %H:%M")))
+        except ValueError:
+            return
+            #error("Error: Failed to read power usage")
+        except (TimeoutException, SerialException) as reason:
+            #TODO: Decide on retry policy
+            #do nothing means that it is retried after one hour (next call to this function).
+            error("Error in log_recording() wile reading history buffers - %s" % (reason,))
+            return
 
-            #update last_log outside try block.
-            #this results in a retry at the next call to log_recording
-            c.last_log = last
-            c.last_log_idx = idx
-            c.last_log_ts = calendar.timegm((last_dt+timedelta(seconds=time.timezone)).utctimetuple())
-            
-            
-            
-            
-            # if c.attr['loginterval'] <60:
-                # dayfname = self.daylogfnames[mac]                
-                # f=open(dayfname,'a')
-            # else:
-                # f=open(fname,'a')
-                
-            #initialisation to a value in the past.
-            #Value assumes 6016 logadresses = 6016*4 60 minutes logs = 1002.n days
-            #just set this several years back. Circles may have been unplugged for a while
-            fileopen = False
-            f = None
-            prev_dt = datetime.now()-timedelta(days=2000)
-            for dt, watt, watt_hour in log:
-                if not dt is None:                
-                    #calculate cumulative energy in Wh
-                    c.cum_energy = c.cum_energy + watt_hour
-                    watt = "%15.4f" % (watt,)
-                    watt_hour = "%15.4f" % (watt_hour,)
-                    ts_str = dt.isoformat()
-                    # if epochf:
-                    #     ts_str = str(calendar.timegm((dt+timedelta(seconds=time.timezone)).utctimetuple()))
-                    # else:
-                    #     ts_str = dt.strftime("%Y-%m-%d %H:%M:%S")
-                    #print("%s, %s, %s" % (ts_str, watt, watt_hour))
-                    
-                    #use year folder determined by timestamps in circles
-                    # yrfold = str(dt.year)+'/'
-                    # if not os.path.exists(logpath):
-                    #     os.makedirs(perpath+yrfold+actdir)
-                    # if not os.path.exists(perpath+yrfold+logdir):
-                    #     os.makedirs(perpath+yrfold+logdir)
+        debug("end   with first %d, last %d, idx %d, last_dt %s" % (first, last, idx, last_dt.strftime("%Y-%m-%d %H:%M")))
 
-                    today = get_now().date().isoformat()
-                    fname = logpath + today + '_' + mac + '.log'
-                    f = open(fname, 'a')
-                    # if c.interval <60:
-                    #     #log in daily file if interval < 60 minutes
-                    #     if prev_dt.date() != dt.date():
-                    #         #open new daily log file
-                    #         if fileopen:
-                    #             f.close()
-                    #         ndate = dt.date().isoformat()
-                    #         # persistent iso tmp
-                    #         newfname= perpath + yrfold + logdir + logpre + ndate + '-' + mac + logpost
-                    #         self.daylogfnames[mac]=newfname
-                    #         f=open(newfname,'a')
-                    # else:
-                    #     #log in the yearly files
-                    #     if prev_dt.year != dt.year:
-                    #         if fileopen:
-                    #             f.close()
-                    #         newfname= perpath + yrfold + logdir + logpre + mac + logpost
-                    #         self.logfnames[mac]=newfname
-                    #         f=open(newfname,'a')
-                    fileopen = True
-                    prev_dt = dt                
-                    f.write("%s, %s, %s\n" % (ts_str, watt, watt_hour))
-                    #debug("MQTT put value in qpub")
-                    msg = str('{"typ":"pwenergy","ts":%s,"mac":"%s","power":%s,"energy":%s,"cum_energy":%.4f,"interval":%d}' % (ts_str, mac, watt.strip(), watt_hour.strip(), c.cum_energy, c.interval))
-                    # qpub.put((self.ftopic("energy", mac), msg, True))
-            if not f == None:
-                f.close()
-                
-            if fileopen:
-                info("circle buffers: %s %s read from %d to %d" % (mac, c.attr['name'], first, last))
-                
-            #store lastlog addresses to file
-            with open(self.lastlogfname, 'w') as f:
-                for c in self.circles:
-                    f.write("%s, %d, %d, %d, %.4f\n" % (c.mac, c.last_log, c.last_log_idx, c.last_log_ts, c.cum_energy))
+        #update last_log outside try block.
+        #this results in a retry at the next call to log_recording
+        c.last_log = last
+        c.last_log_idx = idx
+        c.last_log_ts = calendar.timegm((last_dt+timedelta(seconds=time.timezone)).utctimetuple())
+
+
+
+
+        # if c.attr['loginterval'] <60:
+            # dayfname = self.daylogfnames[mac]
+            # f=open(dayfname,'a')
+        # else:
+            # f=open(fname,'a')
+
+        #initialisation to a value in the past.
+        #Value assumes 6016 logadresses = 6016*4 60 minutes logs = 1002.n days
+        #just set this several years back. Circles may have been unplugged for a while
+        fileopen = False
+        f = None
+        prev_dt = datetime.now()-timedelta(days=2000)
+        for dt, watt, watt_hour in log:
+            if not dt is None:
+                #calculate cumulative energy in Wh
+                c.cum_energy = c.cum_energy + watt_hour
+                watt = "%15.4f" % (watt,)
+                watt_hour = "%15.4f" % (watt_hour,)
+                ts_str = dt.isoformat()
+                # if epochf:
+                #     ts_str = str(calendar.timegm((dt+timedelta(seconds=time.timezone)).utctimetuple()))
+                # else:
+                #     ts_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+                #print("%s, %s, %s" % (ts_str, watt, watt_hour))
+
+                #use year folder determined by timestamps in circles
+                # yrfold = str(dt.year)+'/'
+                # if not os.path.exists(logpath):
+                #     os.makedirs(perpath+yrfold+actdir)
+                # if not os.path.exists(perpath+yrfold+logdir):
+                #     os.makedirs(perpath+yrfold+logdir)
+
+                today = get_now().date().isoformat()
+                fname = logpath + today + '_' + mac + '.log'
+                f = open(fname, 'a')
+                # if c.interval <60:
+                #     #log in daily file if interval < 60 minutes
+                #     if prev_dt.date() != dt.date():
+                #         #open new daily log file
+                #         if fileopen:
+                #             f.close()
+                #         ndate = dt.date().isoformat()
+                #         # persistent iso tmp
+                #         newfname= perpath + yrfold + logdir + logpre + ndate + '-' + mac + logpost
+                #         self.daylogfnames[mac]=newfname
+                #         f=open(newfname,'a')
+                # else:
+                #     #log in the yearly files
+                #     if prev_dt.year != dt.year:
+                #         if fileopen:
+                #             f.close()
+                #         newfname= perpath + yrfold + logdir + logpre + mac + logpost
+                #         self.logfnames[mac]=newfname
+                #         f=open(newfname,'a')
+                fileopen = True
+                prev_dt = dt
+                f.write("%s, %s, %s\n" % (ts_str, watt, watt_hour))
+                #debug("MQTT put value in qpub")
+                msg = str('{"typ":"pwenergy","ts":%s,"mac":"%s","power":%s,"energy":%s,"cum_energy":%.4f,"interval":%d}' % (ts_str, mac, watt.strip(), watt_hour.strip(), c.cum_energy, c.interval))
+                # qpub.put((self.ftopic("energy", mac), msg, True))
+        if not f == None:
+            f.close()
+
+        if fileopen:
+            info("circle buffers: %s %s read from %d to %d" % (mac, c.attr['name'], first, last))
+
+        #store lastlog addresses to file
+        with open(self.lastlogfname, 'w') as f:
+            for c in self.circles:
+                f.write("%s, %d, %d, %d, %.4f\n" % (c.mac, c.last_log, c.last_log_idx, c.last_log_ts, c.cum_energy))
                             
         return fileopen #if fileopen actual writing to log files took place
         
     def log_recordings(self):
         debug("log_recordings")
-        for mac, idx in self.controlsbymac.iteritems():
-            self.log_recording(self.controls[idx], mac)
+        for circle in self.circles:
+            self.log_recording(circle);
 
     def test_offline(self):
         """
@@ -567,7 +482,6 @@ class PWControl(object):
                         if not c.initialized:
                             c.reinit()
                             self.set_interval_production(c)
-                        idx=self.controlsbymac[c.mac]
                 except ValueError:
                     continue
                 except (TimeoutException, SerialException) as reason:
@@ -700,29 +614,6 @@ class PWControl(object):
         self.sync_time()
         self.dump_status()
         self.log_recordings()
-        
-        # #SAMPLE: demonstration of connecting 'unknown' nodes
-        # #First a known node gets removed and reset, and than
-        # #it is added again by the connect_node_by_mac() method.
-        # cp=self.circles[0]
-        # c=self.circles[6]
-        # try:
-            # c.reset()
-        # except:
-            # pass
-        # cp.remove_node(c.mac)
-        # time.sleep(60)
-        # cp.remove_node(c.mac)
-        # time.sleep(2)
-        # try:
-            # print c.get_info()
-        # except:
-            # pass
-        # self.connect_node_by_mac(c.mac)
-        # try:
-            # print c.get_info()
-        # except:
-            # pass
 
         offline = []
             
@@ -747,10 +638,9 @@ class PWControl(object):
             error("PWControl.run(): Communication error in enable_joining")
 
         while 1:
-            #check whether user defined configuration has been changed
-            #when schedules are changed, this call can take over ten seconds!
+            #this call can take over ten seconds!
             self.test_offline()
-            self.poll_configuration()
+
             ##align with the next ten seconds.
             #time.sleep(10-datetime.now().second%10)
             #align to next 10 second boundary, while checking for input commands.
@@ -786,7 +676,7 @@ class PWControl(object):
                 self.connect_unknown_nodes()
 
             if day != prev_day:
-                self.setup_actfiles()
+                self.setup_logfiles()
             self.ten_seconds()
             new_offline = [c.short_mac() for c in self.circles if not c.online]
             if len(offline) > 0 and len(new_offline) == 0:
@@ -814,7 +704,7 @@ init_logger(logpath+"pw-logger.log", "pw-logger")
 log_level()
 
 try:
-    print(get_timestamp())
+    # print(get_timestamp())
     main=PWControl()
     print("starting logging")
     main.run()
