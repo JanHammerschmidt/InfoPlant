@@ -1,6 +1,7 @@
 from serial.serialutil import SerialException
 from plugwise.api import *
 from datetime import datetime, timedelta
+from EnergyData import EnergyData
 import time, calendar, os, logging, json
 
 json.encoder.FLOAT_REPR = lambda f: ("%.2f" % f)
@@ -80,19 +81,24 @@ class PWControl(object):
             if False in [c.online for c in self.circles]:
                 raise RuntimeError("all circles must be sucessfully added on first run")
             for c in self.circles:
+                c.first_run = True
                 c.last_log = c.get_info()['last_logaddr']
                 # c.last_log_ts = ??
         else:
-            last_log_macs = [l.mac for l in last_logs]
+            last_log_macs = [l['mac'] for l in last_logs]
             for c in self.circles:
                 if c.mac in last_log_macs:
                     ll = last_logs[last_log_macs.index(c.mac)]
+                    c.first_run = False
                 else:
                     print('!! circle (mac: %s) not found in last_logs' % c.mac)
                     error('circle (mac: %s) not found in last_logs' % c.mac)
+                    c.first_run = True
+                    c.last_log = c.get_info()['last_logaddr']
+                    continue
                 c.last_log = ll['last_log']
                 c.last_log_idx = ll['last_log_idx']
-                c.last_log_ts = ll['ts']
+                c.last_log_ts = ll['last_log_ts']
                 c.cum_energy = ll['cum_energy']
 
         self.setup_logfiles()
@@ -160,6 +166,7 @@ class PWControl(object):
             try:
                 c = self.circles[self.bymac[mac]]                
             except:
+                print("!! logfile-mac not found in circles: %s" % mac)
                 error("Error in ten_seconds(): mac from controls not found in circles")
                 continue
             ts = get_timestamp()
@@ -168,10 +175,9 @@ class PWControl(object):
                     f.write("%s, offline\n" % (ts,))
                     self.curfile.write("%s, offline\n" % (mac,))
                     c.written_offline += 1
-                    return True
-                return False
+                energy_data.report_offline(c.mac, ts)
             if not c.online:
-                write_offline()
+                # write_offline()
                 # print("should not happen!")
                 continue
 
@@ -181,6 +187,7 @@ class PWControl(object):
                 c.written_offline = 0
                 f.write("%s, %8.2f\n" % (ts, usage,))
                 self.curfile.write("%s, %.2f\n" % (mac, usage))
+                energy_data.add_value(mac, ts, usage, slow_log=False)
             except ValueError:
                 print("should not happen! (ValueError in get_power_usage())")
                 f.write("%5d, \n" % (ts,))
@@ -205,7 +212,7 @@ class PWControl(object):
         c = circle
         mac = c.mac
         if not c.online:
-            return
+            return False
 
         #figure out what already has been logged.
         try:
@@ -213,10 +220,10 @@ class PWControl(object):
             #update c.power fields for administrative purposes
             c.get_power_usage()
         except ValueError:
-            return
+            return False
         except (TimeoutException, SerialException) as reason:
             error("Error in log_recording() get_info: %s" % (reason,))
-            return
+            return False
 
         last = c_info['last_logaddr']
         first = c.last_log
@@ -267,7 +274,7 @@ class PWControl(object):
                     else:
                         #last_dt cannot be determined yet. wait for 2 hours of recordings. return.
                         info("log_recording: last_dt cannot be determined. circles did not record data yet.")
-                        return
+                        return False
 
             #loop over log addresses and write to file
             for log_idx in range(first, last+1):
@@ -298,12 +305,12 @@ class PWControl(object):
             #idx = idx % 4
         except ValueError:
             error("Error: Failed to read power usage")
-            return
+            return False
         except (TimeoutException, SerialException) as reason:
             #TODO: Decide on retry policy
             #do nothing means that it is retried after one hour (next call to this function).
             error("Error in log_recording() wile reading history buffers - %s" % (reason,))
-            return
+            return False
 
         debug("end   with first %d, last %d, idx %d, last_dt %s" % (first, last, idx, last_dt.strftime("%Y-%m-%d %H:%M")))
 
@@ -318,7 +325,7 @@ class PWControl(object):
         #just set this several years back. Circles may have been unplugged for a while
         f = None
         for dt, watt, watt_hour in log:
-            if not dt is None:
+            if dt is not None and not c.first_run:
                 #calculate cumulative energy in Wh
                 c.cum_energy = c.cum_energy + watt_hour
                 watt = "%15.4f" % (watt,)
@@ -330,6 +337,7 @@ class PWControl(object):
                 f = open(fname, 'a')
 
                 f.write("%s, %s, %s\n" % (ts_str, watt, watt_hour))
+                energy_data.add_value(mac, ts_str, watt_hour, slow_log=True)
         if not f == None:
             f.close()
 
@@ -339,13 +347,15 @@ class PWControl(object):
         data = [{'mac':c.mac,'last_log':c.last_log,'last_log_idx':c.last_log_idx,'last_log_ts':c.last_log_ts,'cum_energy':c.cum_energy} for c in self.circles]
         with open(self.lastlogfname, 'w') as f:
             json.dump(data, f, default=lambda o: o.__dict__)
+        return True
 
-        return fileopen #if fileopen actual writing to log files took place
-        
     def log_recordings(self):
         debug("log_recordings")
         for circle in self.circles:
-            self.log_recording(circle);
+            ret = self.log_recording(circle)
+            if circle.first_run and not ret:
+                raise RuntimeError("failed to get recordings on first run for circle: %s" % circle.mac)
+            circle.first_run = False
 
     def test_offline(self):
         """
@@ -396,6 +406,8 @@ class PWControl(object):
         self.dump_status()
         self.log_recordings()
 
+        ## TODO: read all previous data to logging-facility (probably earlier!)
+
         offline = []
             
         circleplus = None
@@ -437,23 +449,18 @@ class PWControl(object):
             
             now = get_now()
             
-            dst = time.localtime().tm_isdst
             day = now.day
             hour = now.hour
             minute = now.minute
-            
-            #read historic data only one circle per minute
-            if minute != prev_minute:
-                logrecs = True
                 
-            #add configured unjoined nodes every minute.
-            #although call is issued every hour
             if minute != prev_minute:
-                self.connect_unknown_nodes()
+                self.log_recordings()
+                self.connect_unknown_nodes() #add configured unjoined nodes every minute (although call is issued every hour..)
 
             if day != prev_day:
                 self.setup_logfiles()
             self.ten_seconds()
+            print("current consumption", energy_data.current_consumption())
 
             new_offline = [c.short_mac() for c in self.circles if not c.online]
             if len(offline) > 0 and len(new_offline) == 0:
@@ -476,11 +483,11 @@ class PWControl(object):
                 self.dump_status()
 
 
-
 init_logger(debug_path+"pw-logger.log", "pw-logger")
 
 try:
     # print(get_timestamp())
+    energy_data = EnergyData(log_path, slow_log_path)
     main=PWControl()
     print("starting logging")
     main.run()
