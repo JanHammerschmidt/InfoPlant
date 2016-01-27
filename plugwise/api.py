@@ -323,7 +323,7 @@ class Circle(object):
         #     #self.relay_state = 'on'
         #     self.schedule_state = 'off'
         self.last_seen = calendar.timegm(datetime.datetime.utcnow().utctimetuple())
-        self.last_log = 0
+        self.last_log = None
         self.last_log_idx = 0
         self.last_log_ts = 0
         self.cum_energy = 0

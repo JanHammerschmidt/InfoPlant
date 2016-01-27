@@ -1,0 +1,12 @@
+# Folders
+/nongit
+*.idea*
+/#weg
+
+#misc
+get-pip.py
+config/*.json
+*.pyc
+*.log
+*.out
+*.pem
