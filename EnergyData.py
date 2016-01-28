@@ -1,6 +1,7 @@
 from bisect import bisect_left, bisect_right
 import os, codecs
 import pandas as pd, numpy as np
+timedelta = pd.offsets.timedelta
 
 class CircleData(object):
     def __init__(self, mac, fast_interval):
@@ -9,6 +10,7 @@ class CircleData(object):
         self.slow_log = pd.Series()
         self.current_consumption = 0
         self.max_gap = fast_interval * 2.5
+        self.td8 = timedelta(seconds=8)
 
     def accumulated_consumption_fast(self, begin, end):
         if begin >= end:
@@ -24,7 +26,7 @@ class CircleData(object):
             dt = (end-begin).total_seconds()
             gap = (index[last] - index[last-1]).total_seconds()
             if gap > self.max_gap:
-                dt = ( end - max(index[last]-pd.offsets.timedelta(seconds=8), begin) ).total_seconds()
+                dt = ( end - max(index[last]-self.td8, begin) ).total_seconds()
                 return d[last] * dt if dt > 0 else 0
             else:
                 return d[last] * dt
@@ -44,19 +46,10 @@ class CircleData(object):
         if last < len(index):
             dt = (end-index[last-1]).total_seconds()
             gap = (index[last]-index[last-1]).total_seconds()
-            if gap <= self.max_gap:
-                acc += d[last] * dt
+            if gap > self.max_gap:
+                dt = max((end - (index[last] - self.td8)).total_seconds(), 0)
+            acc += d[last] * dt
         return acc
-
-        d = self.log.between_time(begin, end)
-        dt = min((d.index[0]-begin).total_seconds(), 8)
-        acc = d[0] * dt
-        for t,i in enumerate(d.index[1:],1):
-            dt = t - d.index[i-1]
-            if dt > 2.5 * self.fast_interval:
-                dt = 8
-            acc += dt * d[i]
-
 
 class EnergyData(object):
     def __init__(self, log_path, slow_log_path, slow_interval=10*60, fast_interval=10):
@@ -76,17 +69,25 @@ class EnergyData(object):
             if not c.slow_log.index.sort_values().identical(c.slow_log.index):
                 print("slow-log-index not sorted")
                 c.slow_log.sort_index(inplace=True)
-            # c.accumulated_consumption_fast(c.log.index[-4] + pd.offsets.timedelta(seconds=1), c.log.index[-3] - pd.offsets.timedelta(seconds=1)) #in-between
-            # c.accumulated_consumption_fast(c.log.index[0] - pd.offsets.timedelta(minutes=10), c.log.index[0] - pd.offsets.timedelta(minutes=1)) # left
-            # c.accumulated_consumption_fast(c.log.index[-2] - pd.offsets.timedelta(minutes=1), c.log.index[-1] + pd.offsets.timedelta(minutes=10)) # right
-            # c.accumulated_consumption_fast(c.log.index[5], c.log.index[6]) # precisely on two log-points
-            # c.accumulated_consumption_fast(c.log.index[5], c.log.index[7]) # same, but further away: 3)
-            # c.accumulated_consumption_fast(c.log.index[5], c.log.index[5] + pd.offsets.timedelta(seconds=1)) # 4) end in-between (near)
-            # c.accumulated_consumption_fast(c.log.index[5], c.log.index[7] + pd.offsets.timedelta(seconds=1)) # 4) same, but further away
-            # c.accumulated_consumption_fast(c.log.index[0] - pd.offsets.timedelta(seconds=1), c.log.index[0]) # 6)  left (end on log-point)
-            # c.accumulated_consumption_fast(c.log.index[-1] - pd.offsets.timedelta(seconds=1), c.log.index[-1]) # 7) right (end on log-point)
-            # c.accumulated_consumption_fast(c.log.index[-2] - pd.offsets.timedelta(seconds=1), c.log.index[-1]) # 7) same, but further away
-            c.accumulated_consumption_fast(c.log.index[-1] - pd.offsets.timedelta(seconds=3), c.log.index[-1] - pd.offsets.timedelta(seconds=2)) # 7) in-between with gap
+
+        c = self.circles['8FB86B']
+        t = c.log.index
+        acc_all = c.accumulated_consumption_fast(t[0], t[-1])
+        acc = 0
+        t0 = t[0]
+        while True:
+            t1 = t0 + timedelta(seconds=10)
+            acc += c.accumulated_consumption_fast(t0, t1)
+            if t1 > t[-1]:
+                break
+            t0 = t1
+        print(acc_all)
+        print(acc)
+
+        c.accumulated_consumption_fast(t[0],t[-1])
+        c.accumulated_consumption_fast(t[0],t1)
+
+        pass
 
     def circle(self, mac):
         if len(mac) > 6:
