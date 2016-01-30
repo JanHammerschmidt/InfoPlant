@@ -29,7 +29,7 @@ open_logcomm(debug_path+"pw-communication.log")
 
 class PWControl(object):
 
-    def __init__(self, first_run = False):
+    def __init__(self, first_run = False, log_interval = 10, gather_historic_data = False):
 
         self.curfile = open(debug_path+'pwpower.log', 'w')
         self.statusfname = debug_path+'pw-status.json'
@@ -64,13 +64,23 @@ class PWControl(object):
             self.bymac[str(item.get('mac'))]=i
             #exception handling timeouts done by circle object for init
             self.circles.append(Circle(item['mac'], self.device, item))
-            self.set_interval_production(self.circles[-1])
+            # self.set_interval_production(self.circles[-1])
+            self.circles[-1].force_interval(log_interval)
             info("adding circle: %s" % (self.circles[-1].attr['name'],))
             self.circles[-1].written_offline = 0
             if (self.circles[-1].online):
                 print("successfully added circle %s" % (self.circles[-1].short_mac(),))
             else:
                 print("!! failed to add circle %s" % (self.circles[-1].short_mac(),))
+
+        if gather_historic_data:
+            print("gathering full historic data...")
+            for circle in self.circles:
+                print(circle.mac)
+                circle.first_run = False
+                self.log_recording(circle)
+            print("done")
+            raise RuntimeError("gathered historic data :P")
 
         try:
             last_logs = json.load(open(self.lastlogfname))
@@ -82,6 +92,7 @@ class PWControl(object):
                 raise RuntimeError("all circles must be sucessfully added on first run")
             for c in self.circles:
                 c.first_run = True
+                c.set_log_interval(log_interval)
                 c.last_log = c.get_info()['last_logaddr']
                 # c.last_log_ts = ??
         else:
@@ -184,6 +195,8 @@ class PWControl(object):
             #prepare for logging values
             try:
                 _, usage, _, _ = c.get_power_usage()
+                if usage < 0 and not c.production:
+                    usage = 0
                 c.written_offline = 0
                 f.write("%s, %8.2f\n" % (ts, usage,))
                 self.curfile.write("%s, %.2f\n" % (mac, usage))
@@ -328,22 +341,23 @@ class PWControl(object):
             if dt is not None and not c.first_run:
                 #calculate cumulative energy in Wh
                 c.cum_energy = c.cum_energy + watt_hour
+                ts_str = dt.isoformat()
+                energy_data.add_value(mac, ts_str, watt_hour, slow_log=True)
                 watt = "%15.4f" % (watt,)
                 watt_hour = "%15.4f" % (watt_hour,)
-                ts_str = dt.isoformat()
 
-                today = get_now().date().isoformat()
+                today = dt.date().isoformat()
                 fname = slow_log_path + today + '_' + mac + '.log'
                 f = open(fname, 'a')
 
                 f.write("%s, %s, %s\n" % (ts_str, watt, watt_hour))
-                energy_data.add_value(mac, ts_str, watt_hour, slow_log=True)
+
         if not f == None:
             f.close()
 
         info("circle buffers: %s %s read from %d to %d" % (mac, c.attr['name'], first, last))
 
-        #store lastlog addresses to file
+        store lastlog addresses to file
         data = [{'mac':c.mac,'last_log':c.last_log,'last_log_idx':c.last_log_idx,'last_log_ts':c.last_log_ts,'cum_energy':c.cum_energy} for c in self.circles]
         with open(self.lastlogfname, 'w') as f:
             json.dump(data, f, default=lambda o: o.__dict__)
@@ -430,6 +444,7 @@ class PWControl(object):
         except:
             error("PWControl.run(): Communication error in enable_joining")
 
+        print("starting logging")
         while 1:
             #this call can take over ten seconds!
             self.test_offline()
@@ -488,8 +503,7 @@ init_logger(debug_path+"pw-logger.log", "pw-logger")
 try:
     # print(get_timestamp())
     energy_data = EnergyData(log_path, slow_log_path)
-    main=PWControl()
-    print("starting logging")
+    main=PWControl(gather_historic_data=False)
     main.run()
 except:
     close_logcomm()

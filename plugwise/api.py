@@ -323,7 +323,7 @@ class Circle(object):
         #     #self.relay_state = 'on'
         #     self.schedule_state = 'off'
         self.last_seen = calendar.timegm(datetime.datetime.utcnow().utctimetuple())
-        self.last_log = None
+        self.last_log = 0
         self.last_log_idx = 0
         self.last_log_ts = 0
         self.cum_energy = 0
@@ -334,6 +334,7 @@ class Circle(object):
         self.interval=60
         self.usage=True
         self.production=False
+        self.interval_force = False
         
         self.reinit()
 
@@ -349,7 +350,11 @@ class Circle(object):
         except (ValueError, TimeoutException, SerialException, AttributeError) as reason:
             self.online = False
             self.initialized = False
-            error("OFFLINE Circle '%s' during initialization Error: %s" % (self.attr['name'], str(reason)))       
+            error("OFFLINE Circle '%s' during initialization Error: %s" % (self.attr['name'], str(reason)))
+
+    def force_interval(self, interval):
+        self.interval = interval
+        self.interval_force = True
 
     def get_status(self):
         retd = {}
@@ -689,7 +694,9 @@ class Circle(object):
             #first two elements of interval may be zero. Derive intervals
             #try to get it from intervals within the four readings
             #otherwise assume 60 minutes.
-            if intervals[i] == 0:
+            if self.interval_force:
+                intervals[i] = self.interval*60
+            elif intervals[i] == 0:
                 if len(dts)>i+1 and dts[i] == dts[i+1]:
                     if len(dts)>i+2:
                         intervals[i] = (dts[i+2]-dts[i]).total_seconds()
@@ -835,6 +842,8 @@ class Circle(object):
         
         
     def _get_interval(self):
+        if self.interval_force:
+            return
         self.interval=60
         self.usage=True
         self.production=False
