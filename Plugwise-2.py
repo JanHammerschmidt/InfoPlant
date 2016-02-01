@@ -3,6 +3,8 @@ from plugwise.api import *
 from datetime import datetime, timedelta
 from EnergyData import EnergyData
 import time, calendar, os, logging, json
+import pandas as pd
+
 
 json.encoder.FLOAT_REPR = lambda f: ("%.2f" % f)
 
@@ -20,8 +22,9 @@ config_path = cfg['config_path']+'/'
 log_path = cfg['log_path']+'/'
 slow_log_path = cfg['slow_log_path']+'/'
 debug_path = cfg['debug_path']+'/'
+energy_log_path = cfg['energy_log_path']+'/'
 # make sure log directory exists
-for path in [log_path, slow_log_path, debug_path]:
+for path in [log_path, slow_log_path, debug_path, energy_log_path]:
     if not os.path.exists(path):
         os.makedirs(path)
 
@@ -34,7 +37,7 @@ class PWControl(object):
         self.curfile = open(debug_path+'pwpower.log', 'w')
         self.statusfname = debug_path+'pw-status.json'
         self.statusdumpfname = debug_path+'pw-statusdump.json'
-        self.lastlogfname = config_path+'pwlastlog.json'
+        self.session_fname = config_path+'session.json'
         self.logfiles = dict()
 
         sconf = json.load(open(config_path+'pw-conf.json'))
@@ -83,7 +86,8 @@ class PWControl(object):
             raise RuntimeError("gathered historic data :P")
 
         try:
-            last_logs = json.load(open(self.lastlogfname))
+            session = json.load(open(self.session_fname))
+            last_logs = session['last_logs']
         except Exception:
             first_run = True
 
@@ -95,7 +99,10 @@ class PWControl(object):
                 c.set_log_interval(log_interval)
                 c.last_log = c.get_info()['last_logaddr']
                 # c.last_log_ts = ??
+            self.session_start = get_now()
+            # self.write_session()
         else:
+            self.session_start = pd.Timestamp(session['start']).to_datetime()
             last_log_macs = [l['mac'] for l in last_logs]
             for c in self.circles:
                 if c.mac in last_log_macs:
@@ -113,6 +120,12 @@ class PWControl(object):
                 c.cum_energy = ll['cum_energy']
 
         self.setup_logfiles()
+
+    def write_session(self):
+        lastlogs = [{'mac':c.mac,'last_log':c.last_log,'last_log_idx':c.last_log_idx,'last_log_ts':c.last_log_ts,'cum_energy':c.cum_energy} for c in self.circles]
+        data = {'start': self.session_start.isoformat(), 'last_logs': lastlogs}
+        with open(self.session_fname, 'w') as f:
+            json.dump(data, f, default=lambda o: o.__dict__)
         
     def log_status(self):
         try:
@@ -357,10 +370,8 @@ class PWControl(object):
 
         info("circle buffers: %s %s read from %d to %d" % (mac, c.attr['name'], first, last))
 
-        store lastlog addresses to file
-        data = [{'mac':c.mac,'last_log':c.last_log,'last_log_idx':c.last_log_idx,'last_log_ts':c.last_log_ts,'cum_energy':c.cum_energy} for c in self.circles]
-        with open(self.lastlogfname, 'w') as f:
-            json.dump(data, f, default=lambda o: o.__dict__)
+        # store lastlog addresses to session file
+        self.write_session()
         return True
 
     def log_recordings(self):
@@ -502,9 +513,10 @@ init_logger(debug_path+"pw-logger.log", "pw-logger")
 
 try:
     # print(get_timestamp())
-    energy_data = EnergyData(log_path, slow_log_path)
-    main=PWControl(gather_historic_data=False)
-    main.run()
+    energy_data = EnergyData(log_path, slow_log_path, energy_log_path, pd.Timestamp('2016-01-04T15:51:40')) # only temporary!
+    # main=PWControl(gather_historic_data=False)
+    # energy_data = EnergyData(log_path, slow_log_path, energy_log_path, main.session_start)
+    # main.run()
 except:
     close_logcomm()
     raise

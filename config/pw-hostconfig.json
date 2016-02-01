@@ -3,5 +3,6 @@
 	"log_path": "../log/datalog",
 	"slow_log_path": "../log/slow_log",
 	"debug_path": "../log/debug",
+	"energy_log_path": "../log",
 	"serial": "/dev/tty.usbserial-A801O3JL"
 }
