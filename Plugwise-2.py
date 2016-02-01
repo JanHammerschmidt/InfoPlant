@@ -513,10 +513,10 @@ init_logger(debug_path+"pw-logger.log", "pw-logger")
 
 try:
     # print(get_timestamp())
-    energy_data = EnergyData(log_path, slow_log_path, energy_log_path, pd.Timestamp('2016-01-04T15:51:40')) # only temporary!
-    # main=PWControl(gather_historic_data=False)
-    # energy_data = EnergyData(log_path, slow_log_path, energy_log_path, main.session_start)
-    # main.run()
+    # energy_data = EnergyData(log_path, slow_log_path, energy_log_path, pd.Timestamp('2016-01-04T15:51:40')) # only temporary!
+    main=PWControl(gather_historic_data=False)
+    energy_data = EnergyData(log_path, slow_log_path, energy_log_path, main.session_start)
+    #main.run()
 except:
     close_logcomm()
     raise

@@ -125,8 +125,8 @@ class EnergyData(object):
         self.interval_td = timedelta(minutes=self.interval_length)
         self.intervals_per_day = 24*60/self.interval_length
         self.intervals_start = start_time.replace(second=0,microsecond=0, minute=start_time.minute - start_time.minute % self.interval_length) + timedelta(minutes=2 * self.interval_length)
-        t0 = self.intervals_start.replace(hour=4,minute=0)
-        self.intervals_offset = int((self.intervals_start - t0).total_seconds()) / self.interval_length_s
+        self.day_start = self.intervals_start.replace(hour=4,minute=0)
+        self.intervals_offset = int((self.intervals_start - self.day_start).total_seconds()) / self.interval_length_s
         if self.intervals_offset < 0:
             self.intervals_offset += self.intervals_per_day
 
@@ -153,38 +153,58 @@ class EnergyData(object):
             if (len(self.intervals) > 0):
                 p = ProgressBar('analyzing historic consumption', len(self.intervals))
                 for i in range(len(self.intervals)):
-                    t = self.intervals_start + timedelta(minutes=i*self.interval_length)
-                    self.intervals[i] = self.accumulated_consumption(t - self.interval_td, t, i)
+                    self.update_interval(i)
                     p.next()
             self.save_cache()
 
         self.consumption_per_interval = [0] * self.intervals_per_day
         self.calc_avg_consumption_per_interval()
 
-        pwiddict =  {'78DB3F':1, '8FB7BB':2, '8FB86B':3, '8FD194':4,
-                     '8FD25D':5, '8FD2DE':6, '8FD33A':7, '8FD358':8, '8FD472':9}
-        locdict =   {1:'Flur',   2:'Wohn/TV', 3:'Wohn/Lm', 4:'Wohn/Le',
-                     5:'Bad', 6:'Kuech/L', 7:'Kuech/MW', 8:'Toaster', 9:'TH'}
+        # pwiddict =  {'78DB3F':1, '8FB7BB':2, '8FB86B':3, '8FD194':4,
+        #              '8FD25D':5, '8FD2DE':6, '8FD33A':7, '8FD358':8, '8FD472':9}
+        # locdict =   {1:'Flur',   2:'Wohn/TV', 3:'Wohn/Lm', 4:'Wohn/Le',
+        #              5:'Bad', 6:'Kuech/L', 7:'Kuech/MW', 8:'Toaster', 9:'TH'}
+        #
+        # x = [self.intervals_start + timedelta(minutes=self.interval_length * i) for i in range(len(self.intervals))]
+        # x2 = [self.day_start + timedelta(minutes=self.interval_length * i) for i in range(self.intervals_per_day)]
+        # plt.plot(x2, np.cumsum(self.consumption_per_interval))
+        # plt.show()
+        #
+        # for k in range(9):
+        #     mac = (key for key,value in pwiddict.items() if value==k+1).next()
+        #     c = self.circle(mac)
+        #     if True:
+        #         c.calc_avg_consumption_per_interval(self.intervals_per_day, self.intervals_offset)
+        #         plt.plot(x2, c.consumption_per_interval)
+        #     else:
+        #         plt.plot(x, np.cumsum(c.intervals))
+        #     plt.title(locdict[k+1])
+        #     plt.show()
 
-        x = [self.intervals_start + timedelta(minutes=self.interval_length * i) for i in range(len(self.intervals))]
-        x2 = [t0 + timedelta(minutes=self.interval_length * i) for i in range(self.intervals_per_day)]
-        plt.plot(x2, np.cumsum(self.consumption_per_interval))
-        plt.show()
+        self.intervals_dirty = set()
 
-        for k in range(9):
-            mac = (key for key,value in pwiddict.items() if value==k+1).next()
-            c = self.circle(mac)
-            if True:
-                c.calc_avg_consumption_per_interval(self.intervals_per_day, self.intervals_offset)
-                plt.plot(x2, c.consumption_per_interval)
-            else:
-                plt.plot(x, np.cumsum(c.intervals))
-            plt.title(locdict[k+1])
-            plt.show()
+    def update_intervals(self):
+        for i in self.intervals_dirty:
+            self.update_interval(i)
 
+    def update_interval(self, i):
+        t = self.intervals_start + timedelta(minutes=i*self.interval_length)
+        self.intervals[i] = self.accumulated_consumption(t - self.interval_td, t, i)
 
-
-        pass
+    def plot_current_and_historic_consumption(self):
+        idx = len(self.intervals)-1
+        if idx < self.intervals_per_day:
+            print("not enough data..")
+        else:
+            plt.ion()
+            plt.clf()
+            i0 = self.day_start_interval(idx)
+            x = [self.day_start + timedelta(minutes=self.interval_length * i) for i in range(self.intervals_per_day)]
+            plt.plot(x[:idx-i0+1], np.cumsum(self.intervals[i0:]), label='current consumption')
+            plt.plot(x, np.cumsum(self.consumption_per_interval), label='historic consumption')
+            plt.legend(loc='best')
+            plt.pause(0.001)
+            # plt.show()
 
     def accumulated_consumption(self, begin, end, i):
         t = []
@@ -224,7 +244,6 @@ class EnergyData(object):
         with open(self.cache_fname, 'w') as f:
             json.dump(cache, f, default=lambda o: o.__dict__)
 
-
     def circle(self, mac):
         if len(mac) > 6:
             mac = mac[-6:]
@@ -251,6 +270,15 @@ class EnergyData(object):
                 circle.log = circle.log.append(series)
             p.next()
 
+    def timestamp2interval(self, ts):
+        return int(ceil((ts - self.intervals_start).total_seconds() / self.interval_length_s))
+
+    def interval2timestamp(self, i):
+        return self.intervals_start + timedelta(minutes = i * self.interval_length)
+
+    def day_start_interval(self, i):
+        return (i/self.intervals_per_day) * self.intervals_per_day - self.intervals_offset
+
     def add_value(self, mac, timestamp, value, slow_log):
         c = self.circle(mac)
         if slow_log:
@@ -261,7 +289,9 @@ class EnergyData(object):
         ts = pd.Timestamp(timestamp)
         log[ts] = value
         # flag intervals of accumulated consumption for recalculation
-
+        i = self.timestamp2interval(ts)
+        ts0 = ts - timedelta(seconds = self.slow_interval if slow_log else self.fast_interval)
+        self.intervals_dirty.update(range(self.timestamp2interval(ts0), i+1))
 
     def report_offline(self, mac, timestamp):
         self.circle(mac).current_consumption = 0
