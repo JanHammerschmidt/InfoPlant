@@ -15,7 +15,7 @@ def get_now():
 def get_timestamp():
     return get_now().isoformat()
 
-cfg = json.load(open("config/pw-hostconfig.json"))
+cfg = json.load(open("config/pw-hostconfig.%sjson" % ('win.' if os.name=='nt' else '')))
 
 port = cfg['serial']
 port2 = cfg['serial2'] if 'serial2' in cfg else port
