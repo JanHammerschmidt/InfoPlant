@@ -149,7 +149,7 @@ class EnergyData(object):
 
         n_intervals = int(ceil((last_t - start_time).total_seconds() / (self.interval_length_s)))
         if self.load_cache():
-            p = ProgressBar('re-analyze last 24 hours', self.intervals_per_day)
+            p = ProgressBar('re-analyze last 24 hours', min(n_intervals, self.intervals_per_day))
             self.resize_intervals(n_intervals)
             for i in range(max(len(self.intervals)-self.intervals_per_day, 0), len(self.intervals)):
                 self.update_interval(i)
