@@ -493,7 +493,14 @@ class PWControl(object):
             if day != prev_day:
                 self.setup_logfiles()
             self.ten_seconds()
-            print("current consumption", energy_data.current_consumption())
+            energy_data.update_intervals()
+            if not start_interval_updated:
+                energy_data.update_start_interval()
+
+            if minute != prev_minute:
+                energy_data.plot_current_and_historic_consumption()
+
+            # print("current consumption", energy_data.current_consumption())
 
             new_offline = [c.short_mac() for c in self.circles if not c.online]
             if len(offline) > 0 and len(new_offline) == 0:
@@ -505,6 +512,7 @@ class PWControl(object):
             self.log_status()
             if hour != prev_hour:
                 energy_data.save_cache()
+                start_interval_updated = energy_data.update_start_interval()
                 if hour == 4:
                     self.sync_time()
                     info("Daily 4 AM: time synced circles.")
