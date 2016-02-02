@@ -320,6 +320,7 @@ class EnergyData(object):
         i = self.timestamp2interval(ts)
         ts0 = ts - timedelta(seconds = self.slow_interval if slow_log else self.fast_interval)
         self.intervals_dirty.update(range(self.timestamp2interval(ts0), i+1))
+        # self.invalidate_cache()
 
     def report_offline(self, mac, timestamp):
         self.circle(mac).current_consumption = 0
@@ -329,3 +330,7 @@ class EnergyData(object):
 
     def current_accumulated_daily_consumption(self):
         return sum(self.intervals[self.current_start_interval:])
+
+    def invalidate_cache(self):
+        if os.path.isfile(self.cache_fname):
+            os.remove(self.cache_fname)
