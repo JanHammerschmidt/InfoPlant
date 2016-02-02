@@ -200,6 +200,11 @@ class EnergyData(object):
         t = self.intervals_start + timedelta(minutes=i*self.interval_length)
         self.intervals[i] = self.accumulated_consumption(t - self.interval_td, t, i)
 
+    def update_start_interval(self):
+        dsi = self.day_start_interval(len(self.intervals)-1)
+        ret = dsi != self.current_start_interval
+        self.current_start_interval = dsi
+        return ret
     def plot_current_and_historic_consumption(self):
         idx = len(self.intervals)-1
         if idx < self.intervals_per_day:
