@@ -249,7 +249,8 @@ class EnergyData(object):
         for i,c in enumerate(self.intervals, start=self.intervals_offset):
             consumptions[i % self.intervals_per_day].append(c)
         for i,c in enumerate(consumptions):
-            self.consumption_per_interval[i] = sum(c) / len(c)
+            if len(c) > 0:
+                self.consumption_per_interval[i] = sum(c) / len(c)
 
     def load_cache(self):
         try:
