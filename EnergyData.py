@@ -196,6 +196,12 @@ class EnergyData(object):
         for i in self.intervals_dirty:
             self.update_interval(i)
 
+    def resize_intervals(self, n):
+        if n > len(self.intervals):
+            self.intervals += [0] * (n - len(self.intervals))
+            for c in self.circles.values():
+                c.intervals += [0] * (n - len(c.intervals))
+
     def update_interval(self, i):
         t = self.intervals_start + timedelta(minutes=i*self.interval_length)
         self.intervals[i] = self.accumulated_consumption(t - self.interval_td, t, i)
