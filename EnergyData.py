@@ -326,3 +326,6 @@ class EnergyData(object):
 
     def current_consumption(self):
         return sum(c.current_consumption for c in self.circles.values())
+
+    def current_accumulated_daily_consumption(self):
+        return sum(self.intervals[self.current_start_interval:])
