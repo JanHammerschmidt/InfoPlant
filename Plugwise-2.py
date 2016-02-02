@@ -196,7 +196,7 @@ class PWControl(object):
             ts = get_timestamp()
             def write_offline():
                 if c.written_offline < 10:
-                    f.write("%s, offline\n" % (ts,))
+                    # f.write("%s, offline\n" % (ts,))
                     self.curfile.write("%s, offline\n" % (mac,))
                     c.written_offline += 1
                 energy_data.report_offline(c.mac, ts)
