@@ -18,6 +18,7 @@ def get_timestamp():
 cfg = json.load(open("config/pw-hostconfig.json"))
 
 port = cfg['serial']
+port2 = cfg['serial2'] if 'serial2' in cfg else port
 config_path = cfg['config_path']+'/'
 log_path = cfg['log_path']+'/'
 slow_log_path = cfg['slow_log_path']+'/'
@@ -58,7 +59,10 @@ class PWControl(object):
         #read the static configuration
         self.circles = []
         self.bymac = dict()
-        self.device = Stick(port, timeout=1)
+        try:
+            self.device = Stick(port, timeout=1)
+        except OSError:
+            self.device = Stick(port2, timeout=1)
 
         for i,item in enumerate(sconf['static']):
             #remove tabs which survive dialect='trimmed'

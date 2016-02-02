@@ -4,5 +4,6 @@
 	"slow_log_path": "../log/slow_log",
 	"debug_path": "../log/debug",
 	"energy_log_path": "../log",
-	"serial": "/dev/tty.usbserial-A801O3JL"
+	"serial": "/dev/tty.usbserial-A801O3JL",
+	"serial2": "/dev/tty.usbserial-A801O29W"
 }
