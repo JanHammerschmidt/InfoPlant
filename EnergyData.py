@@ -134,9 +134,11 @@ class EnergyData(object):
         for c in self.circles.values():
             if not c.log.index.sort_values().identical(c.log.index):
                 print("log-index not sorted")
+                c.log = c.log[~c.log.index.duplicated(keep='first')]
                 c.log.sort_index(inplace=True)
             if not c.slow_log.index.sort_values().identical(c.slow_log.index):
                 print("slow-log-index not sorted")
+                c.slow_log = c.slow_log[~c.slow_log.index.duplicated(keep='first')]
                 c.slow_log.sort_index(inplace=True)
             if len(c.log) > 0:
                 last_t = max(last_t, c.log.index[-1])
