@@ -220,21 +220,21 @@ class EnergyData(object):
         return sum(self.intervals[self.current_start_interval:])
 
     def plot_current_and_historic_consumption(self):
-        idx = len(self.intervals)-1
-        if idx < self.intervals_per_day:
-            print("not enough data..")
-        else:
-            plt.ion()
-            plt.clf()
-            i0 = self.day_start_interval(idx)
-            x = [self.day_start + timedelta(minutes=self.interval_length * i) for i in range(self.intervals_per_day)]
-            plt.plot(x[:idx-i0+1], np.cumsum(self.intervals[i0:]), label='current consumption')
-            plt.plot(x, np.cumsum(self.consumption_per_interval), label='historic consumption')
-            plt.legend(loc='best')
-            plt.pause(0.001)
-            # plt.show()
+        plt.ion()
+        plt.clf()
+        x = [self.day_start + timedelta(minutes=self.interval_length * i) for i in range(self.intervals_per_day)]
+        plt.plot(x, np.cumsum(self.consumption_per_interval), label='historic consumption', color='blue')
 
-    def accumulated_consumption(self, begin, end, i):
+        idx = len(self.intervals)-1
+        i0 = self.day_start_interval(idx)
+        if i0 > 0 and idx-i0 > 0:
+            plt.plot(x[:idx-i0], np.cumsum(self.intervals[i0:-1]), label='current consumption', color='red')
+            # plt.plot(x[:idx-i0+1], self.intervals[i0:], label='current consumption')
+        plt.legend(loc='best')
+        plt.pause(0.001)
+        # plt.show()
+
+    def accumulated_consumption(self, begin, end, i): # for an interval
         t = []
         for c in self.circles.values():
             cc = c.accumulated_consumption(begin, end)
