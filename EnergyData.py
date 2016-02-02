@@ -205,6 +205,10 @@ class EnergyData(object):
         ret = dsi != self.current_start_interval
         self.current_start_interval = dsi
         return ret
+
+    def current_daily_consumption(self):
+        return sum(self.intervals[self.current_start_interval:])
+
     def plot_current_and_historic_consumption(self):
         idx = len(self.intervals)-1
         if idx < self.intervals_per_day:
