@@ -200,6 +200,7 @@ class EnergyData(object):
             self.resize_intervals(maxi+1)
             for i in self.intervals_dirty:
                 self.update_interval(i)
+        self.intervals_dirty.clear()
         # self.save_cache()
 
     def resize_intervals(self, n):
