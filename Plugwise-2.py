@@ -431,6 +431,13 @@ class PWControl(object):
         self.dump_status()
         self.log_recordings()
 
+        energy_data.update_intervals()
+        energy_data.calc_avg_consumption_per_interval()
+        energy_data.update_start_interval()
+        energy_data.save_cache()
+        energy_data.plot_current_and_historic_consumption()
+        start_interval_updated = True
+
         ## TODO: read all previous data to logging-facility (probably earlier!)
 
         offline = []
