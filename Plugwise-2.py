@@ -497,6 +497,7 @@ class PWControl(object):
 
             self.log_status()
             if hour != prev_hour:
+                energy_data.save_cache()
                 if hour == 4:
                     self.sync_time()
                     info("Daily 4 AM: time synced circles.")
