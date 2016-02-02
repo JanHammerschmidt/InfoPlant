@@ -504,9 +504,10 @@ class PWControl(object):
                 energy_data.update_start_interval()
 
             if minute != prev_minute:
+                energy_data.calc_avg_consumption_per_interval()
                 energy_data.plot_current_and_historic_consumption()
 
-            # print("current consumption", energy_data.current_consumption())
+            print("current consumption", energy_data.current_consumption(), energy_data.current_daily_consumption())
 
             new_offline = [c.short_mac() for c in self.circles if not c.online]
             if len(offline) > 0 and len(new_offline) == 0:
