@@ -95,6 +95,7 @@ class PWControl(object):
         except Exception:
             first_run = True
 
+        self.first_run = first_run
         if first_run:
             if False in [c.online for c in self.circles]:
                 raise RuntimeError("all circles must be sucessfully added on first run")
@@ -385,6 +386,7 @@ class PWControl(object):
             if circle.first_run and not ret:
                 raise RuntimeError("failed to get recordings on first run for circle: %s" % circle.mac)
             circle.first_run = False
+        self.first_run = False
 
     def test_offline(self):
         """
@@ -445,7 +447,7 @@ class PWControl(object):
         ## TODO: read all previous data to logging-facility (probably earlier!)
 
         offline = []
-            
+
         circleplus = None
         for c in self.circles:
             try:
@@ -535,7 +537,7 @@ try:
     # print(get_timestamp())
     # energy_data = EnergyData(log_path, slow_log_path, energy_log_path, pd.Timestamp('2016-01-04T15:51:40')) # only temporary!
     main=PWControl(gather_historic_data=False)
-    energy_data = EnergyData(log_path, slow_log_path, energy_log_path, main.session_start)
+    energy_data = EnergyData(log_path, slow_log_path, energy_log_path, main.session_start, main.first_run)
     energy_data.plot_current_and_historic_consumption()
     main.run()
 except:

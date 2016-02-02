@@ -111,7 +111,7 @@ class CircleData(object):
             self.consumption_per_interval[i] = sum(c) / len(c)
 
 class EnergyData(object):
-    def __init__(self, log_path, slow_log_path, cache_path, start_time, slow_interval=10*60, fast_interval=10):
+    def __init__(self, log_path, slow_log_path, cache_path, start_time, first_run, slow_interval=10*60, fast_interval=10):
         self.cache_fname = path.join(cache_path, 'energy_data.json')
         self.slow_interval = slow_interval
         self.fast_interval = fast_interval
@@ -164,7 +164,8 @@ class EnergyData(object):
                 for i in range(len(self.intervals)):
                     self.update_interval(i)
                     p.next()
-            self.save_cache()
+            if not first_run:
+                self.save_cache()
 
         self.consumption_per_interval = [0] * self.intervals_per_day
         self.calc_avg_consumption_per_interval()
