@@ -197,10 +197,12 @@ class EnergyData(object):
     def update_intervals(self):
         if len(self.intervals_dirty) > 0:
             maxi = max(self.intervals_dirty)
-            self.resize_intervals(maxi+1)
-            for i in self.intervals_dirty:
-                self.update_interval(i)
-        self.intervals_dirty.clear()
+            if maxi >= 0:
+                # print("maxi", maxi)
+                self.resize_intervals(maxi+1)
+                for i in self.intervals_dirty:
+                    self.update_interval(i)
+            self.intervals_dirty.clear()
         # self.save_cache()
 
     def resize_intervals(self, n):
@@ -210,17 +212,15 @@ class EnergyData(object):
                 c.intervals += [0] * (n - len(c.intervals))
 
     def update_interval(self, i):
-        t = self.intervals_start + timedelta(minutes=i*self.interval_length)
-        self.intervals[i] = self.accumulated_consumption(t - self.interval_td, t, i)
+        if i >= 0:
+            t = self.intervals_start + timedelta(minutes=i*self.interval_length)
+            self.intervals[i] = self.accumulated_consumption(t - self.interval_td, t, i)
 
     def update_start_interval(self, check = True):
         dsi = self.day_start_interval(len(self.intervals)-1)
-        ret = dsi != self.current_start_interval if check else True
+        ret = (dsi != self.current_start_interval) if check else True
         self.current_start_interval = dsi
         return ret
-
-    def current_daily_consumption(self):
-        return sum(self.intervals[self.current_start_interval:])
 
     def plot_current_and_historic_consumption(self):
         plt.ion()
