@@ -309,7 +309,8 @@ class EnergyData(object):
         return self.intervals_start + timedelta(minutes = i * self.interval_length)
 
     def day_start_interval(self, i):
-        return (i/self.intervals_per_day) * self.intervals_per_day - self.intervals_offset
+        return (i/self.intervals_per_day) * self.intervals_per_day - self.intervals_offset + \
+               (self.intervals_per_day if i%self.intervals_per_day > (self.intervals_per_day - self.intervals_offset) else 0)
 
     def add_value(self, mac, timestamp, value, slow_log):
         c = self.circle(mac)
