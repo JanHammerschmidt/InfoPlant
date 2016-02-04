@@ -336,6 +336,14 @@ class EnergyData(object):
     def current_accumulated_daily_consumption(self):
         return sum(self.intervals[max(self.current_start_interval,0):])
 
+    def comparison_avg_accumulated_daily_consumption(self, ts):
+        total_seconds = (ts - self.day_start).total_seconds()
+        full_intervals = min(int(total_seconds / self.interval_length_s), self.intervals_per_day)
+        part_interval = (total_seconds % self.interval_length_s) / self.interval_length_s
+        consumption = sum(self.consumption_per_interval[:full_intervals])
+        if full_intervals < self.intervals_per_day:
+            consumption += part_interval * self.consumption_per_interval[full_intervals]
+        return consumption
     def invalidate_cache(self):
         if os.path.isfile(self.cache_fname):
             os.remove(self.cache_fname)
