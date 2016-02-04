@@ -220,6 +220,9 @@ class EnergyData(object):
         dsi = self.day_start_interval(len(self.intervals)-1)
         ret = (dsi != self.current_start_interval) if check else True
         self.current_start_interval = dsi
+        if ret:
+            self.day_start = self.interval2timestamp(dsi)
+            print("new day_start:", self.day_start.isoformat())
         return ret
 
     def plot_current_and_historic_consumption(self):
