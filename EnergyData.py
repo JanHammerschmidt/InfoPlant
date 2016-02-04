@@ -231,7 +231,7 @@ class EnergyData(object):
         idx = len(self.intervals)-1
         i0 = self.day_start_interval(idx)
         if i0 > 0 and idx-i0 > 0:
-            plt.plot(x[:idx-i0], np.cumsum(self.intervals[i0:-1]), label='current consumption', color='red')
+            plt.plot(x[:idx-i0+1], np.cumsum(self.intervals[i0:i0+len(x)]), label='current consumption', color='red')
             # plt.plot(x[:idx-i0+1], self.intervals[i0:], label='current consumption')
         plt.legend(loc='best')
         plt.pause(0.001)
