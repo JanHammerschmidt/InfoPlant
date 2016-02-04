@@ -334,7 +334,7 @@ class EnergyData(object):
         return sum(c.current_consumption for c in self.circles.values())
 
     def current_accumulated_daily_consumption(self):
-        return sum(self.intervals[self.current_start_interval:])
+        return sum(self.intervals[max(self.current_start_interval,0):])
 
     def invalidate_cache(self):
         if os.path.isfile(self.cache_fname):
