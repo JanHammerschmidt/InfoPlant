@@ -82,12 +82,15 @@ class PWControl(object):
 
         if gather_historic_data:
             print("gathering full historic data...")
+            self.gather_historic_data = True
             for circle in self.circles:
                 print(circle.mac)
                 circle.first_run = False
                 self.log_recording(circle)
             print("done")
             raise RuntimeError("gathered historic data :P")
+        else:
+            self.gather_historic_data = False
 
         try:
             session = json.load(open(self.session_fname))
@@ -360,7 +363,8 @@ class PWControl(object):
                 #calculate cumulative energy in Wh
                 c.cum_energy = c.cum_energy + watt_hour
                 ts_str = dt.isoformat()
-                energy_data.add_value(mac, ts_str, watt_hour, slow_log=True)
+                if not self.gather_historic_data:
+                    energy_data.add_value(mac, dt, watt_hour, slow_log=True)
                 watt = "%15.4f" % (watt,)
                 watt_hour = "%15.4f" % (watt_hour,)
 
@@ -376,7 +380,8 @@ class PWControl(object):
         info("circle buffers: %s %s read from %d to %d" % (mac, c.attr['name'], first, last))
 
         # store lastlog addresses to session file
-        self.write_session()
+        if not self.gather_historic_data:
+            self.write_session()
         return True
 
     def log_recordings(self):
@@ -539,9 +544,11 @@ try:
     # print(get_timestamp())
     # energy_data = EnergyData(log_path, slow_log_path, energy_log_path, pd.Timestamp('2016-01-04T15:51:40')) # only temporary!
     main=PWControl(gather_historic_data=False)
-    energy_data = EnergyData(log_path, slow_log_path, energy_log_path, main.session_start, main.first_run)
-    energy_data.plot_current_and_historic_consumption()
-    main.run()
+    if not main.gather_historic_data:
+        energy_data = EnergyData(log_path, slow_log_path, energy_log_path, main.session_start, main.first_run)
+        # energy_data.update_day_start(get_now())
+        energy_data.plot_current_and_historic_consumption()
+        main.run()
 except:
     close_logcomm()
     raise
