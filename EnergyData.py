@@ -347,6 +347,10 @@ class EnergyData(object):
     def current_accumulated_daily_consumption(self):
         return sum(self.intervals[max(self.current_start_interval,0):])
 
+    def update_day_start(self, ts):
+        self.day_start = ts.replace(hour=4,minute=0,second=0,microsecond=0)
+        print("day_start", self.day_start.isoformat())
+
     def comparison_avg_accumulated_daily_consumption(self, ts):
         total_seconds = (ts - self.day_start).total_seconds()
         full_intervals = min(int(total_seconds / self.interval_length_s), self.intervals_per_day)
