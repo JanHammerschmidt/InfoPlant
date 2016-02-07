@@ -61,7 +61,7 @@ class PWControl(object):
         self.bymac = dict()
         try:
             self.device = Stick(port, timeout=1)
-        except OSError:
+        except (OSError, SerialException):
             self.device = Stick(port2, timeout=1)
 
         for i,item in enumerate(sconf['static']):
