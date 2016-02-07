@@ -324,7 +324,8 @@ class PlugwiseResponse(PlugwiseMessage):
         if self.expected_command_counter != None and self.expected_command_counter != self.command_counter:
             raise OutOfSequenceException("expected seqnr %s, received seqnr %s - this may be a duplicate message" % (self.expected_command_counter, self.command_counter))
         if raw_msg_len != len(self):
-            raise UnexpectedResponse("response doesn't have expected length. expected %d bytes got %d" % (len(self), raw_msg_len))
+            print("!! raw_msg_len != len(self)")
+            # raise UnexpectedResponse("response doesn't have expected length. expected %d bytes got %d" % (len(self), raw_msg_len))
         
         #log communication when no exceptions will be raised
         if self.mac is None:
@@ -347,8 +348,12 @@ class PlugwiseResponse(PlugwiseMessage):
         response = self._parse_params(response)
 
     def _parse_params(self, response):
-        for p in self.params:
+        for i,p in enumerate(self.params):
             myval = response[:len(p)]
+            if len(myval) < len(p):
+                print("!! less params than expected")
+                self.params = self.params[:i]
+                break
             #debug("PARS      "+repr(str(myval)))
             p.unserialize(myval)
             debug("PARS      "+repr(str(myval)) + " EVAL "+repr(str(p.value)))
@@ -633,10 +638,10 @@ class PlugwiseStatusRequest(PlugwiseRequest):
     """Get Stick Status"""
     ID = b'000A'
 
-    def __init__(self):
+    def __init__(self, mac = ''):
         """message for that initializes the Stick"""
         # init doesn't send MAC address
-        PlugwiseRequest.__init__(self, '')
+        PlugwiseRequest.__init__(self, mac)
 
 class PlugwisePowerUsageRequest(PlugwiseRequest):
     ID = b'0012'
@@ -802,10 +807,10 @@ class PlugwiseQueryCirclePlusRequest(PlugwiseRequest):
     """Query any presence off networks. Maybe intended to find a Circle+ from the Stick"""
     ID = b'0001'
 
-    def __init__(self):
+    def __init__(self, mac = ''):
         """message for that initializes the Stick"""
         # init doesn't send MAC address
-        PlugwiseRequest.__init__(self, '')
+        PlugwiseRequest.__init__(self, mac)
 
 class PlugwiseConnectCirclePlusRequest(PlugwiseRequest):
     """Request connection to the network. Maybe intended to connect a Circle+ to the Stick"""
