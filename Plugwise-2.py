@@ -134,6 +134,7 @@ class PWControl(object):
             self.last_logs = []
         else:
             self.session_start = pd.Timestamp(session['start']).to_datetime()
+            cfg_change = self.cfg != session['cfg']
             last_log_macs = [l['mac'] for l in last_logs]
             for c in self.circles:
                 if c.mac in last_log_macs:
@@ -159,7 +160,7 @@ class PWControl(object):
     def write_session(self):
         lastlogs = [{'mac':c.mac,'last_log':c.last_log,'last_log_idx':c.last_log_idx,'last_log_ts':c.last_log_ts,'cum_energy':c.cum_energy} for c in self.circles]
         lastlogs += self.last_logs
-        data = {'start': self.session_start.isoformat(), 'last_logs': lastlogs}
+        data = {'start': self.session_start.isoformat(), 'cfg': self.cfg, 'last_logs': lastlogs}
         with open(self.session_fname, 'w') as f:
             json.dump(data, f, default=lambda o: o.__dict__)
         
