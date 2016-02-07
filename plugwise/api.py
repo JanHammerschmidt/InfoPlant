@@ -61,6 +61,7 @@ class Stick(SerialComChannel):
         msg = PlugwiseStatusRequest().serialize()
         self.send_msg(msg)
         resp = self.expect_response(PlugwiseStatusResponse)
+        self.mac = resp.mac
         debug(str(resp))
 
     def send_msg(self, cmd):
