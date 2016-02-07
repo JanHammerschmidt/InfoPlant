@@ -64,7 +64,8 @@ class PWControl(object):
         except (OSError, SerialException):
             self.device = Stick(port2, timeout=1)
 
-        for i,item in enumerate(sconf['static']):
+        def add_circle(i, cfg = None):
+            item = sconf['static'][i]
             #remove tabs which survive dialect='trimmed'
             for key in item:
                 if isinstance(item[key],str): item[key] = item[key].strip()
@@ -73,16 +74,33 @@ class PWControl(object):
             self.bymac[mac[-6:]]=i
             self.bymac[mac2]=i
             self.bymac[mac2[-6:]]=i
-            #exception handling timeouts done by circle object for init
-            self.circles.append(Circle(item['mac'], self.device, item))
-            # self.set_interval_production(self.circles[-1])
-            self.circles[-1].force_interval(log_interval)
-            info("adding circle: %s" % (self.circles[-1].attr['name'],))
-            self.circles[-1].written_offline = 0
-            if (self.circles[-1].online):
-                print("successfully added circle %s" % (self.circles[-1].short_mac(),))
+            if cfg == None:
+                #exception handling timeouts done by circle object for init
+                c = Circle(item['mac'], self.device, item)
+                cfg = 0 if c.online else 1
+                if cfg == 1:
+                    c = Circle(item['mac2'], self.device, item)
+            elif cfg == 0:
+                c = Circle(item['mac'], self.device, item)
             else:
-                print("!! failed to add circle %s" % (self.circles[-1].short_mac(),))
+                c = Circle(item['mac2'], self.device, item)
+            self.circles.append(c)
+            # self.set_interval_production(self.circles[-1])
+            c.force_interval(log_interval)
+            info("adding circle: %s" % (c.attr['name'],))
+            c.written_offline = 0
+            if (c.online):
+                print("successfully added circle %s" % (c.short_mac(),))
+            else:
+                print("!! failed to add circle %s" % (c.short_mac(),))
+            return cfg
+
+        cfg = add_circle(0)
+        if not self.circles[0].online:
+            raise RuntimeError("Could not connect to circle+")
+        for i in range(1,len(sconf['static'])):
+            add_circle(i, cfg)
+        self.cfg = cfg
 
         if gather_historic_data:
             print("gathering full historic data...")
