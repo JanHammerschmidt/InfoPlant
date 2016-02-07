@@ -359,6 +359,15 @@ class EnergyData(object):
         if full_intervals < self.intervals_per_day:
             consumption += part_interval * self.consumption_per_interval[full_intervals]
         return consumption
+
+    def check_intervals(self):
+        for i in range(max(len(self.intervals)-self.intervals_per_day, 0), len(self.intervals)):
+            prev = self.intervals[i]
+            self.update_interval(i)
+            if prev != self.intervals[i]:
+                print("!!!!", i, prev, self.intervals[i], len(self.intervals))
+
+
     def invalidate_cache(self):
         if os.path.isfile(self.cache_fname):
             os.remove(self.cache_fname)
