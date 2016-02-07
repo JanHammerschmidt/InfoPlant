@@ -68,9 +68,11 @@ class PWControl(object):
             #remove tabs which survive dialect='trimmed'
             for key in item:
                 if isinstance(item[key],str): item[key] = item[key].strip()
-            mac = str(item.get('mac'))
+            mac, mac2 = str(item.get('mac')), str(item.get('mac2'))
             self.bymac[mac]=i
             self.bymac[mac[-6:]]=i
+            self.bymac[mac2]=i
+            self.bymac[mac2[-6:]]=i
             #exception handling timeouts done by circle object for init
             self.circles.append(Circle(item['mac'], self.device, item))
             # self.set_interval_production(self.circles[-1])
