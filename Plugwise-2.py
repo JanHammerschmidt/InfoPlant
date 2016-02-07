@@ -512,7 +512,6 @@ class PWControl(object):
             self.ten_seconds()
             energy_data.update_intervals()
             if not start_interval_updated:
-                energy_data.update_start_interval()
                 start_interval_updated = energy_data.update_start_interval()
 
             if minute != prev_minute:
