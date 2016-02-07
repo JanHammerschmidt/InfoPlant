@@ -68,7 +68,9 @@ class PWControl(object):
             #remove tabs which survive dialect='trimmed'
             for key in item:
                 if isinstance(item[key],str): item[key] = item[key].strip()
-            self.bymac[str(item.get('mac'))]=i
+            mac = str(item.get('mac'))
+            self.bymac[mac]=i
+            self.bymac[mac[-6:]]=i
             #exception handling timeouts done by circle object for init
             self.circles.append(Circle(item['mac'], self.device, item))
             # self.set_interval_production(self.circles[-1])
@@ -544,7 +546,7 @@ try:
     # energy_data = EnergyData(log_path, slow_log_path, energy_log_path, pd.Timestamp('2016-01-04T15:51:40')) # only temporary!
     main=PWControl(gather_historic_data=False)
     if not main.gather_historic_data:
-        energy_data = EnergyData(log_path, slow_log_path, energy_log_path, main.session_start, main.first_run)
+        energy_data = EnergyData(main.bymac, log_path, slow_log_path, energy_log_path, main.session_start, main.first_run)
         # energy_data.update_day_start(get_now())
         energy_data.plot_current_and_historic_consumption()
         main.run()

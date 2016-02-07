@@ -32,8 +32,8 @@ class ProgressBar:
             stdout.write('\n')
 
 class CircleData(object):
-    def __init__(self, mac, fast_interval, slow_interval):
-        self.mac = mac
+    def __init__(self, idx, fast_interval, slow_interval):
+        self.idx = idx
         self.log = pd.Series()
         self.slow_log = pd.Series()
         self.current_consumption = 0
@@ -111,7 +111,8 @@ class CircleData(object):
             self.consumption_per_interval[i] = sum(c) / len(c)
 
 class EnergyData(object):
-    def __init__(self, log_path, slow_log_path, cache_path, start_time, first_run, slow_interval=10*60, fast_interval=10):
+    def __init__(self, circle_idx_by_mac, log_path, slow_log_path, cache_path, start_time, first_run, slow_interval=10*60, fast_interval=10):
+        self.circle_idx_by_mac = circle_idx_by_mac
         self.cache_fname = path.join(cache_path, 'energy_data.json')
         self.slow_interval = slow_interval
         self.fast_interval = fast_interval
@@ -134,19 +135,19 @@ class EnergyData(object):
         last_t = start_time
         for c in self.circles.values():
             if not c.log.index.sort_values().identical(c.log.index):
-                print("log-index not sorted! (for %s)" % c.mac)
+                print("log-index not sorted! (for circle %i)" % c.idx)
                 c.log.sort_index(inplace=True)
             dupl = c.log.index.duplicated(keep='first')
             if True in dupl:
-                print("log-index has %i duplicates! (for: %s)" % (sum(dupl), c.mac))
+                print("log-index has %i duplicates! (for circle %i)" % (sum(dupl), c.idx))
                 c.log = c.log[~dupl]
 
             if not c.slow_log.index.sort_values().identical(c.slow_log.index):
-                print("slow-log-index not sorted! (for %s)" % c.mac)
+                print("slow-log-index not sorted! (for circle %i)" % c.idx)
                 c.slow_log.sort_index(inplace=True)
             dupl = c.slow_log.index.duplicated(keep='first')
             if True in dupl:
-                print("slow_log-index has %i duplicates! (for: %s)" % (sum(dupl), c.mac))
+                print("slow_log-index has %i duplicates! (for circle %i)" % (sum(dupl), c.idx))
                 c.slow_log = c.slow_log[~dupl]
 
             if len(c.log) > 0:
@@ -254,27 +255,28 @@ class EnergyData(object):
         except Exception:
             return False
         self.intervals = intervals
-        for mac,intv in circle_intervals.items():
-            self.circle(mac).intervals = intv
+        for idx,intv in circle_intervals.items():
+            self.circle(int(idx)).intervals = intv
         print("successfully loaded cache")
         return True
 
     def save_cache(self):
         cache = {'intervals_start': self.intervals_start.isoformat(), 'intervals_offset': self.intervals_offset}
         cache['intervals'] = self.intervals
-        cache['circle_intervals'] = {c.mac: c.intervals for c in self.circles.values()}
+        cache['circle_intervals'] = {c.idx: c.intervals for c in self.circles.values()}
         with open(self.cache_fname, 'w') as f:
             json.dump(cache, f, default=lambda o: o.__dict__)
 
-    def circle(self, mac):
-        if len(mac) > 6:
-            mac = mac[-6:]
-        if mac in self.circles:
-            return self.circles[mac]
+    def circle(self, idx):
+        if idx in self.circles:
+            return self.circles[idx]
         else:
-            c = CircleData(mac, self.fast_interval, self.slow_interval)
-            self.circles[mac] = c
+            c = CircleData(idx, self.fast_interval, self.slow_interval)
+            self.circles[idx] = c
             return c
+
+    def circle_from_mac(self, mac):
+        return self.circle(self.circle_idx_by_mac[mac])
 
     def load_logfiles(self, path, slow_log):
         item = 2 if slow_log else 1
@@ -282,7 +284,7 @@ class EnergyData(object):
         p = ProgressBar('loading logfiles' + (' (interval data)' if slow_log else ''), len(files))
         for fname in files:
             mac = fname[-10:-4]
-            circle = self.circle(mac)
+            circle = self.circle_from_mac(mac)
             f = codecs.open(path+fname, encoding="latin-1")
             lines = [line.strip().split(',') for line in f.readlines()]
             series = pd.Series([np.max(np.float(l[item]),0) for l in lines], index=[pd.Timestamp(l[0]) for l in lines])
@@ -303,7 +305,7 @@ class EnergyData(object):
                (self.intervals_per_day if i%self.intervals_per_day > (self.intervals_per_day - self.intervals_offset) else 0)
 
     def add_value(self, mac, timestamp, value, slow_log):
-        c = self.circle(mac)
+        c = self.circle_from_mac(mac)
         if slow_log:
             log = c.slow_log
         else:
@@ -317,7 +319,7 @@ class EnergyData(object):
         self.intervals_dirty.update(range(self.timestamp2interval(ts0), i+1))
 
     def report_offline(self, mac, timestamp):
-        self.circle(mac).current_consumption = 0
+        self.circle_from_mac(mac).current_consumption = 0
 
     def current_consumption(self):
         return sum(c.current_consumption for c in self.circles.values())
