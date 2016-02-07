@@ -113,28 +113,34 @@ class PWControl(object):
                 # c.last_log_ts = ??
             self.session_start = get_now()
             # self.write_session()
+            self.last_logs = []
         else:
             self.session_start = pd.Timestamp(session['start']).to_datetime()
             last_log_macs = [l['mac'] for l in last_logs]
             for c in self.circles:
                 if c.mac in last_log_macs:
-                    ll = last_logs[last_log_macs.index(c.mac)]
+                    li = last_log_macs.index(c.mac)
+                    ll = last_logs[li]
                     c.first_run = False
+                    c.last_log = ll['last_log']
+                    c.last_log_idx = ll['last_log_idx']
+                    c.last_log_ts = ll['last_log_ts']
+                    c.cum_energy = ll['cum_energy']
+                    del last_log_macs[li]
+                    del last_logs[li]
                 else:
                     print('!! circle (mac: %s) not found in last_logs' % c.mac)
                     error('circle (mac: %s) not found in last_logs' % c.mac)
                     c.first_run = True
                     c.last_log = c.get_info()['last_logaddr']
                     continue
-                c.last_log = ll['last_log']
-                c.last_log_idx = ll['last_log_idx']
-                c.last_log_ts = ll['last_log_ts']
-                c.cum_energy = ll['cum_energy']
+            self.last_logs = last_logs
 
         self.setup_logfiles()
 
     def write_session(self):
         lastlogs = [{'mac':c.mac,'last_log':c.last_log,'last_log_idx':c.last_log_idx,'last_log_ts':c.last_log_ts,'cum_energy':c.cum_energy} for c in self.circles]
+        lastlogs += self.last_logs
         data = {'start': self.session_start.isoformat(), 'last_logs': lastlogs}
         with open(self.session_fname, 'w') as f:
             json.dump(data, f, default=lambda o: o.__dict__)
