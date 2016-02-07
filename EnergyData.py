@@ -125,6 +125,7 @@ class EnergyData(object):
         self.interval_td = timedelta(minutes=self.interval_length)
         self.intervals_per_day = 24*60/self.interval_length
         self.intervals_start = start_time.replace(second=0,microsecond=0, minute=start_time.minute - start_time.minute % self.interval_length) + timedelta(minutes=2 * self.interval_length)
+        print("intervals_start is: %s" % self.intervals_start.isoformat())
         self.day_start = self.intervals_start.replace(hour=4,minute=0)
         self.intervals_offset = int((self.intervals_start - self.day_start).total_seconds()) / self.interval_length_s
         if self.intervals_offset < 0:
