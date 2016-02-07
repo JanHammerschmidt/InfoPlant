@@ -180,27 +180,6 @@ class EnergyData(object):
         self.calc_avg_consumption_per_interval()
         self.update_start_interval(False)
 
-        # pwiddict =  {'78DB3F':1, '8FB7BB':2, '8FB86B':3, '8FD194':4,
-        #              '8FD25D':5, '8FD2DE':6, '8FD33A':7, '8FD358':8, '8FD472':9}
-        # locdict =   {1:'Flur',   2:'Wohn/TV', 3:'Wohn/Lm', 4:'Wohn/Le',
-        #              5:'Bad', 6:'Kuech/L', 7:'Kuech/MW', 8:'Toaster', 9:'TH'}
-        #
-        # x = [self.intervals_start + timedelta(minutes=self.interval_length * i) for i in range(len(self.intervals))]
-        # x2 = [self.day_start + timedelta(minutes=self.interval_length * i) for i in range(self.intervals_per_day)]
-        # plt.plot(x2, np.cumsum(self.consumption_per_interval))
-        # plt.show()
-        #
-        # for k in range(9):
-        #     mac = (key for key,value in pwiddict.items() if value==k+1).next()
-        #     c = self.circle(mac)
-        #     if True:
-        #         c.calc_avg_consumption_per_interval(self.intervals_per_day, self.intervals_offset)
-        #         plt.plot(x2, c.consumption_per_interval)
-        #     else:
-        #         plt.plot(x, np.cumsum(c.intervals))
-        #     plt.title(locdict[k+1])
-        #     plt.show()
-
         self.intervals_dirty = set()
 
     def update_intervals(self):
@@ -212,7 +191,6 @@ class EnergyData(object):
                 for i in self.intervals_dirty:
                     self.update_interval(i)
             self.intervals_dirty.clear()
-        # self.save_cache()
 
     def resize_intervals(self, n):
         if n > len(self.intervals):
@@ -337,7 +315,6 @@ class EnergyData(object):
         i = self.timestamp2interval(ts)
         ts0 = ts - timedelta(seconds = self.slow_interval if slow_log else self.fast_interval)
         self.intervals_dirty.update(range(self.timestamp2interval(ts0), i+1))
-        # self.invalidate_cache()
 
     def report_offline(self, mac, timestamp):
         self.circle(mac).current_consumption = 0
@@ -348,10 +325,6 @@ class EnergyData(object):
     def current_accumulated_daily_consumption(self):
         return sum(self.intervals[max(self.current_start_interval,0):])
 
-    def update_day_start(self, ts):
-        self.day_start = ts.replace(hour=4,minute=0,second=0,microsecond=0)
-        print("day_start", self.day_start.isoformat())
-
     def comparison_avg_accumulated_daily_consumption(self, ts):
         total_seconds = (ts - self.day_start).total_seconds()
         full_intervals = min(int(total_seconds / self.interval_length_s), self.intervals_per_day)
@@ -360,15 +333,3 @@ class EnergyData(object):
         if full_intervals < self.intervals_per_day:
             consumption += part_interval * self.consumption_per_interval[full_intervals]
         return consumption
-
-    def check_intervals(self):
-        for i in range(max(len(self.intervals)-self.intervals_per_day, 0), len(self.intervals)):
-            prev = self.intervals[i]
-            self.update_interval(i)
-            if prev != self.intervals[i]:
-                print("!!!!", i, prev, self.intervals[i], len(self.intervals))
-
-
-    def invalidate_cache(self):
-        if os.path.isfile(self.cache_fname):
-            os.remove(self.cache_fname)

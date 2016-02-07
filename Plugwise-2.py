@@ -64,12 +64,6 @@ class PWControl(object):
         except (OSError, SerialException):
             self.device = Stick(port2, timeout=1)
 
-        # success, mac = self.device.find_circleplus()
-        # if success:
-        #     c = Circle(mac, self.device)
-        #     pass
-        # self.device.connect_circleplus()
-
         for i,item in enumerate(sconf['static']):
             #remove tabs which survive dialect='trimmed'
             for key in item:
