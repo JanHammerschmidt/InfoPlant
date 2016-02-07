@@ -140,11 +140,15 @@ class PWControl(object):
                 if c.mac in last_log_macs:
                     li = last_log_macs.index(c.mac)
                     ll = last_logs[li]
-                    c.first_run = False
-                    c.last_log = ll['last_log']
-                    c.last_log_idx = ll['last_log_idx']
-                    c.last_log_ts = ll['last_log_ts']
-                    c.cum_energy = ll['cum_energy']
+                    if cfg_change:
+                        c.first_run = True
+                        c.last_log = c.get_info()['last_logaddr']
+                    else:
+                        c.first_run = False
+                        c.last_log = ll['last_log']
+                        c.last_log_idx = ll['last_log_idx']
+                        c.last_log_ts = ll['last_log_ts']
+                        c.cum_energy = ll['cum_energy']
                     del last_log_macs[li]
                     del last_logs[li]
                 else:
