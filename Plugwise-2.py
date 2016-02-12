@@ -134,6 +134,8 @@ class PWControl(object):
         else:
             self.session_start = pd.Timestamp(session['start']).to_datetime()
             cfg_change = self.cfg != session['cfg']
+            if cfg_change and False in [c.online for c in self.circles]:
+                raise RuntimeError("all circles must be sucessfully added on config change")
             last_log_macs = [l['mac'] for l in last_logs]
             for c in self.circles:
                 if c.mac in last_log_macs:
@@ -151,7 +153,8 @@ class PWControl(object):
                     del last_log_macs[li]
                     del last_logs[li]
                 else:
-                    print('!! circle (mac: %s) not found in last_logs' % c.mac)
+                    if not cfg_change:
+                        print('!! circle (mac: %s) not found in last_logs' % c.mac)
                     error('circle (mac: %s) not found in last_logs' % c.mac)
                     c.first_run = True
                     c.last_log = c.get_info()['last_logaddr']
