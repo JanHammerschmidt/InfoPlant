@@ -19,7 +19,6 @@ cfg = json.load(open("config/pw-hostconfig.%sjson" % ('win.' if os.name=='nt' el
 
 port = cfg['serial']
 port2 = cfg['serial2'] if 'serial2' in cfg else port
-config_path = cfg['config_path']+'/'
 log_path = cfg['log_path']+'/'
 slow_log_path = cfg['slow_log_path']+'/'
 debug_path = cfg['debug_path']+'/'
@@ -38,10 +37,10 @@ class PWControl(object):
         self.curfile = open(debug_path+'pwpower.log', 'w')
         self.statusfname = debug_path+'pw-status.json'
         self.statusdumpfname = debug_path+'pw-statusdump.json'
-        self.session_fname = config_path+'session.json'
+        self.session_fname = log_path+'session.json'
         self.logfiles = dict()
 
-        sconf = json.load(open(config_path+'pw-conf.json'))
+        sconf = json.load(open('config/pw-conf.json'))
         #set log settings
         if sconf.has_key('log_comm'):
             log_comm(sconf['log_comm'].strip().lower() == 'yes')
