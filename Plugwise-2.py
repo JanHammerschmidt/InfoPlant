@@ -250,13 +250,15 @@ class PWControl(object):
 
             #prepare for logging values
             try:
-                _, usage, _, _ = c.get_power_usage()
+                usage_1s, usage, _, _ = c.get_power_usage()
                 if usage < 0 and not c.production:
                     usage = 0
+                if usage_1s < 0 and not c.production:
+                    usage_1s = 0
                 c.written_offline = 0
                 f.write("%s, %8.2f\n" % (ts, usage,))
                 self.curfile.write("%s, %.2f\n" % (mac, usage))
-                energy_data.add_value(mac, ts, usage, slow_log=False)
+                energy_data.add_value(mac, ts, usage, slow_log=False, value_1s = usage_1s)
             except ValueError:
                 print("should not happen! (ValueError in get_power_usage())")
                 f.write("%5d, \n" % (ts,))

@@ -37,6 +37,7 @@ class CircleData(object):
         self.log = pd.Series()
         self.slow_log = pd.Series()
         self.current_consumption = 0
+        self.current_consumption_fast = 0
         self.max_gap = fast_interval * 2.5
         self.max_slow_gap = slow_interval * 1.1
         self.td8 = timedelta(seconds=8)
@@ -300,13 +301,14 @@ class EnergyData(object):
         return (i/self.intervals_per_day) * self.intervals_per_day - self.intervals_offset + \
                (self.intervals_per_day if i%self.intervals_per_day > (self.intervals_per_day - self.intervals_offset) else 0)
 
-    def add_value(self, mac, timestamp, value, slow_log):
+    def add_value(self, mac, timestamp, value, slow_log, value_1s = None):
         c = self.circle_from_mac(mac)
         if slow_log:
             log = c.slow_log
         else:
             log = c.log
             c.current_consumption = value
+            c.current_consumption_fast = value_1s
         ts = pd.Timestamp(timestamp)
         log[ts] = value
         # flag intervals of accumulated consumption for recalculation
@@ -319,6 +321,9 @@ class EnergyData(object):
 
     def current_consumption(self):
         return sum(c.current_consumption for c in self.circles.values())
+
+    def current_consumption_fast(self):
+        return sum(c.current_consumption_fast for c in self.circles.values())
 
     def current_accumulated_daily_consumption(self):
         return sum(self.intervals[max(self.current_start_interval,0):])
