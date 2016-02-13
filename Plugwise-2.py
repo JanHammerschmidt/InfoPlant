@@ -236,13 +236,14 @@ class PWControl(object):
                 print("!! logfile-mac not found in circles: %s" % mac)
                 error("Error in ten_seconds(): mac from controls not found in circles")
                 continue
-            ts = get_timestamp()
+            ts = get_now()
+            ts_str = ts.isoformat()
             def write_offline():
                 if c.written_offline < 10:
                     # f.write("%s, offline\n" % (ts,))
                     self.curfile.write("%s, offline\n" % (mac,))
                     c.written_offline += 1
-                energy_data.report_offline(c.mac, ts)
+                energy_data.report_offline(c.mac, ts_str)
             if not c.online:
                 # write_offline()
                 # print("should not happen!")
@@ -256,9 +257,9 @@ class PWControl(object):
                 if usage_1s < 0 and not c.production:
                     usage_1s = 0
                 c.written_offline = 0
-                f.write("%s, %8.2f\n" % (ts, usage,))
-                self.curfile.write("%s, %.2f\n" % (mac, usage))
-                energy_data.add_value(mac, ts, usage, slow_log=False, value_1s = usage_1s)
+                if energy_data.add_value(mac, ts, usage, slow_log=False, value_1s = usage_1s):
+                    f.write("%s, %8.2f\n" % (ts_str, usage,))
+                    self.curfile.write("%s, %.2f\n" % (mac, usage))
             except ValueError:
                 print("should not happen! (ValueError in get_power_usage())")
                 f.write("%5d, \n" % (ts,))
@@ -533,7 +534,7 @@ class PWControl(object):
             if not start_interval_updated:
                 start_interval_updated = energy_data.update_start_interval()
 
-            print("cur:", energy_data.current_consumption(), energy_data.current_consumption_fast(), energy_data.current_accumulated_daily_consumption(),
+            print("cur:", energy_data.current_consumption(), energy_data.current_accumulated_daily_consumption(),
                   energy_data.comparison_avg_accumulated_daily_consumption(now), energy_data.interval2timestamp(energy_data.current_start_interval).isoformat(), now.isoformat())
 
             if minute != prev_minute:

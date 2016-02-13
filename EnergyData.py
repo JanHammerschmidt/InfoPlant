@@ -37,7 +37,6 @@ class CircleData(object):
         self.log = pd.Series()
         self.slow_log = pd.Series()
         self.current_consumption = 0
-        self.current_consumption_fast = 0
         self.max_gap = fast_interval * 2.5
         self.max_slow_gap = slow_interval * 1.1
         self.td8 = timedelta(seconds=8)
@@ -146,6 +145,8 @@ class EnergyData(object):
             if True in dupl:
                 print("slow_log-index has %i duplicates! (for circle %i)" % (sum(dupl), c.idx))
                 c.slow_log = c.slow_log[~dupl]
+
+            c.last_timestamp = self.intervals_start
 
             if len(c.log) > 0:
                 last_t = max(last_t, c.log.index[-1])
@@ -306,24 +307,24 @@ class EnergyData(object):
         if slow_log:
             log = c.slow_log
         else:
+            c.current_consumption = value if value_1s < 200 else value_1s
+            if (timestamp - c.last_timestamp).total_seconds() < 8:
+                return False
+            c.last_timestamp = timestamp
             log = c.log
-            c.current_consumption = value
-            c.current_consumption_fast = value_1s
         ts = pd.Timestamp(timestamp)
         log[ts] = value
         # flag intervals of accumulated consumption for recalculation
         i = self.timestamp2interval(ts)
         ts0 = ts - timedelta(seconds = self.slow_interval if slow_log else self.fast_interval)
         self.intervals_dirty.update(range(self.timestamp2interval(ts0), i+1))
+        return True
 
     def report_offline(self, mac, timestamp):
         self.circle_from_mac(mac).current_consumption = 0
 
     def current_consumption(self):
         return sum(c.current_consumption for c in self.circles.values())
-
-    def current_consumption_fast(self):
-        return sum(c.current_consumption_fast for c in self.circles.values())
 
     def current_accumulated_daily_consumption(self):
         return sum(self.intervals[max(self.current_start_interval,0):])
