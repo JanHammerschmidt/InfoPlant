@@ -487,19 +487,6 @@ class PWControl(object):
         ## TODO: read all previous data to logging-facility (probably earlier!)
 
         offline = []
-
-        circleplus = None
-        for c in self.circles:
-            try:
-                if c.get_info()['type'] == 'circle+':
-                    circleplus = c
-            except:
-                pass
-        if circleplus != None:
-            try:
-                debug("joined node table: %s" % (circleplus.read_node_table(),))
-            except:
-                error("PWControl.run(): Communication error in read_node_table")
       
         #Inform network that nodes are allowed to join the network
         #Nodes may start advertising themselves with a 0006 message.
