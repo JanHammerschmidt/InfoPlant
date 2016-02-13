@@ -504,11 +504,12 @@ class PWControl(object):
 
             ##align with the next ten seconds.
             #time.sleep(10-datetime.now().second%10)
+
             #align to next 10 second boundary, while checking for input commands.
-            ref = datetime.now()
-            proceed_at = ref + timedelta(seconds=(10 - ref.second%10), microseconds= -ref.microsecond)
-            while datetime.now() < proceed_at:
-                time.sleep(0.5)
+            # ref = datetime.now()
+            # proceed_at = ref + timedelta(seconds=(10 - ref.second%10), microseconds= -ref.microsecond)
+            # while datetime.now() < proceed_at:
+            #     time.sleep(0.5)
 
             #prepare for logging values
             prev_day = day
