@@ -329,6 +329,9 @@ class EnergyData(object):
     def current_accumulated_daily_consumption(self):
         return sum(self.intervals[max(self.current_start_interval,0):])
 
+    def current_accumulated_consumption_24h(self):
+        return sum(self.intervals[-self.intervals_per_day:])
+
     def comparison_avg_accumulated_daily_consumption(self, ts):
         total_seconds = (ts - self.day_start).total_seconds()
         full_intervals = min(int(total_seconds / self.interval_length_s), self.intervals_per_day)
@@ -337,3 +340,10 @@ class EnergyData(object):
         if full_intervals < self.intervals_per_day:
             consumption += part_interval * self.consumption_per_interval[full_intervals]
         return consumption
+
+    def comparison_avg_accumulated_consumption_24h(self, ts):
+        consumption = sum(self.consumption_per_interval)
+        idx = self.timestamp2interval(ts)
+        i = (idx+self.intervals_offset) % self.intervals_per_day # this is the "current" comparison interval that is being filled up
+        part_interval = (ts - self.interval2timestamp(idx)).total_seconds() / self.interval_length_s
+        return consumption - part_interval * self.consumption_per_interval[i]
