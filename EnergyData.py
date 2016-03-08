@@ -341,12 +341,26 @@ class EnergyData(object):
             consumption += part_interval * self.consumption_per_interval[full_intervals]
         return consumption
 
-    def comparison_avg_accumulated_consumption_24h(self, ts):
-        consumption = sum(self.consumption_per_interval)
-        idx = self.timestamp2interval(ts)
-        i = (idx+self.intervals_offset) % self.intervals_per_day # this is the "current" comparison interval that is being filled up
-        part_interval = (ts - self.interval2timestamp(idx)).total_seconds() / self.interval_length_s
+    def comparison_avg_accumulated_consumption_24h_2(self, ts):
+        consumption = sum(self.consumption_per_interval) # avg total consumption
+        idx = self.timestamp2interval(ts) # index of current interval
+        i = (idx+self.intervals_offset) % self.intervals_per_day # this is the idx of the "current" comparison interval that is being filled up
+        part_interval = (self.interval2timestamp(idx) - ts).total_seconds() / self.interval_length_s
         return consumption - part_interval * self.consumption_per_interval[i]
+
+    def comparison_avg_accumulated_consumption_24h(self, ts):
+        current_interval = len(self.intervals)-1
+        interval_ts = self.interval2timestamp(current_interval) # timestamp of current interval
+        consumption = sum(self.consumption_per_interval)
+        if ts > interval_ts: # current time is 'beyond' intervals => all intervals are filled up => use full comparison data
+            return consumption
+        else:
+            cmp_interval = (current_interval+self.intervals_offset) % self.intervals_per_day # this is the idx of the current *comparison* interval that is being filled up
+            part_sec = (interval_ts - ts).total_seconds()
+            if part_sec > self.interval_length_s: # ts is before the current interval => shouldn't happen!
+                print("!!warning: ts before current interval")
+            part = part_sec / self.interval_length_s
+            return consumption - part * self.consumption_per_interval[cmp_interval]
 
     def calculate_std(self):
         # from 6:00 to 1:00
