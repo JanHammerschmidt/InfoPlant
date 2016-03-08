@@ -5,6 +5,9 @@ from EnergyData import EnergyData
 import time, calendar, os, logging, json
 import pandas as pd
 
+cfg_plot_data = True
+cfg_print_data = True
+
 if True:
     circle_from_mac =  {'78DB3F':1, '8FB7BB':2, '8FB86B':3, '8FD194':4,
                      '8FD25D':5, '8FD2DE':6, '8FD33A':7, '8FD358':8, '8FD472':9}
@@ -561,12 +564,14 @@ class PWControl(object):
             if not start_interval_updated:
                 start_interval_updated = energy_data.update_start_interval()
 
-            print("cur:", energy_data.current_consumption(), energy_data.current_accumulated_daily_consumption(),
-                  energy_data.comparison_avg_accumulated_daily_consumption(now), energy_data.interval2timestamp(energy_data.current_start_interval).isoformat(), now.isoformat())
+            if cfg_print_data:
+                print("cur:", energy_data.current_consumption(), energy_data.current_accumulated_daily_consumption(),
+                      energy_data.comparison_avg_accumulated_daily_consumption(now), energy_data.interval2timestamp(energy_data.current_start_interval).isoformat(), now.isoformat())
 
             if minute != prev_minute:
                 energy_data.calc_avg_consumption_per_interval()
-                energy_data.plot_current_and_historic_consumption()
+                if cfg_plot_data:
+                    energy_data.plot_current_and_historic_consumption()
 
             new_offline = [c.short_mac() for c in self.circles if not c.online]
             if len(offline) > 0 and len(new_offline) == 0:
