@@ -121,6 +121,7 @@ class EnergyData(object):
         self.load_logfiles(log_path, slow_log=False)
         self.load_logfiles(slow_log_path, slow_log=True)
 
+        self.std = 500 # this is a rather arbitrary value ..
         self.interval_length = 10 # minutes
         self.interval_length_s = self.interval_length * 60
         self.interval_td = timedelta(minutes=self.interval_length)

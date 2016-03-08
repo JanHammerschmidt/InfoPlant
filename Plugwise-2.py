@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from EnergyData import EnergyData
 import time, calendar, os, logging, json
 import pandas as pd
+import numpy as np
 
 cfg_plot_data = True
 cfg_print_data = True
@@ -564,9 +565,13 @@ class PWControl(object):
             if not start_interval_updated:
                 start_interval_updated = energy_data.update_start_interval()
 
+            diff = energy_data.current_accumulated_consumption_24h() - energy_data.comparison_avg_accumulated_consumption_24h(now)
+            twig = np.clip(diff, -energy_data.std, energy_data.std) / energy_data.std
+
+
             if cfg_print_data:
-                print("cur:", energy_data.current_consumption(), energy_data.current_accumulated_daily_consumption(),
-                      energy_data.comparison_avg_accumulated_daily_consumption(now), energy_data.interval2timestamp(energy_data.current_start_interval).isoformat(), now.isoformat())
+                print("cur:", twig, energy_data.current_consumption(), energy_data.current_accumulated_consumption_24h(),
+                      energy_data.comparison_avg_accumulated_consumption_24h(now), now.isoformat())
 
             if minute != prev_minute:
                 energy_data.calc_avg_consumption_per_interval()
