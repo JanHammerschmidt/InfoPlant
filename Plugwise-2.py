@@ -46,6 +46,21 @@ def get_now():
 def get_timestamp():
     return get_now().isoformat()
 
+class Limiter(object):
+    def __init__(self, min_deviation = 0.2, min_timediff = timedelta(hours=1), first_update = timedelta(minutes=1), init_value = -999):
+        self.last_update = get_now() - first_update
+        self.value = init_value
+        self.min_deviation = min_deviation
+        self.min_timediff = min_timediff
+
+    def update(self, val):
+        if abs(val-self.value) > self.min_deviation and get_now() - self.last_update > self.min_timediff:
+            self.value = val
+            self.last_update = get_now()
+            return True
+        return False
+
+
 cfg = json.load(open("config/pw-hostconfig.%sjson" % ('win.' if os.name=='nt' else '')))
 
 port = cfg['serial']
@@ -65,6 +80,7 @@ class PWControl(object):
 
     def __init__(self, first_run = False, log_interval = 10, gather_historic_data = False):
 
+        self.twig_limiter = Limiter()
         self.curfile = open(debug_path+'pwpower.log', 'w')
         self.statusfname = debug_path+'pw-status.json'
         self.statusdumpfname = debug_path+'pw-statusdump.json'
@@ -567,7 +583,8 @@ class PWControl(object):
 
             diff = energy_data.current_accumulated_consumption_24h() - energy_data.comparison_avg_accumulated_consumption_24h(now)
             twig = np.clip(diff, -energy_data.std, energy_data.std) / energy_data.std
-
+            if self.twig_limiter.update(twig):
+                print("!!TWIG UPDATE!!", twig)
 
             if cfg_print_data:
                 print("cur:", twig, energy_data.current_consumption(), energy_data.current_accumulated_consumption_24h(),
