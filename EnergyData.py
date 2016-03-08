@@ -352,15 +352,10 @@ class EnergyData(object):
         # from 6:00 to 1:00
         start = (6-4)*60*60 / self.interval_length_s - self.intervals_offset
         end = (25-4)*60*60 / self.interval_length_s - self.intervals_offset
-        mean = sum(self.consumption_per_interval)
         v = []
-        v2 = []
         for i in range(start,end): # i: end-time of a day-interval
             for i1 in range(i,len(self.intervals),self.intervals_per_day): # check all possible end-times
                 i0 = i1 - self.intervals_per_day # i0: start of the day-interval
                 if i0 >= 0: # within measured time?
-                    v2.append(sum(self.intervals[i0:i1]))
-                    d = sum(self.intervals[i0:i1])-mean
-                    v.append(d*d)
-        self.std = sqrt(np.mean(v))
-        print(self.std, np.std(v2))
+                    v.append(sum(self.intervals[i0:i1])) # 24h consumption
+        self.std = np.std(v)
