@@ -5,6 +5,33 @@ from EnergyData import EnergyData
 import time, calendar, os, logging, json
 import pandas as pd
 
+if True:
+    circle_from_mac =  {'78DB3F':1, '8FB7BB':2, '8FB86B':3, '8FD194':4,
+                     '8FD25D':5, '8FD2DE':6, '8FD33A':7, '8FD358':8, '8FD472':9}
+
+    # data@home/ # pd.Timestamp('2016-01-04T15:51:40.296000')
+    # data # pd.Timestamp('2015-12-17T23:27:40.125000')
+    energy_data = EnergyData(circle_from_mac, "/Users/jhammers/Dropbox/Eigene Dateien/phd/Projekte/2_Power Plant/energiedaten von thomas/data@home/",
+                             "/Users/jhammers/InfoPlant", "/Users/jhammers/InfoPlant", pd.Timestamp('2016-01-04T15:51:40.296000'), False, reanalyze_intervals=10)
+    energy_data.calculate_std()
+    # energy_data.comparison_avg_accumulated_consumption_24h(pd.Timestamp('2016-01-05T15:51:40.296000'))
+    energy_data.comparison_avg_accumulated_consumption_24h(energy_data.interval2timestamp(len(energy_data.intervals)-1) - timedelta(seconds=5))
+    # energy_data.current_accumulated_consumption_24h()
+    # energy_data.comparison_avg_accumulated_consumption_24h(energy_data.day_start) # - timedelta(hours=20,minutes=1,seconds=5)
+    # energy_data.update_day_start(get_now())
+    idx = len(energy_data.intervals)-1
+    if False:
+        energy_data.plot_current_and_historic_consumption_2(energy_data.timestamp2interval(energy_data.day_start + timedelta(hours=8)), True)
+        exit()
+    i0 = idx-energy_data.intervals_per_day
+    while True:
+        i = idx
+        while i >= i0:
+            for j in range(6):
+                i -= 1
+                energy_data.plot_current_and_historic_consumption_2(i, False)
+            energy_data.plot_current_and_historic_consumption_2(i, True)
+    exit()
 
 json.encoder.FLOAT_REPR = lambda f: ("%.2f" % f)
 

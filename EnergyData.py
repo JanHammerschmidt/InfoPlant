@@ -111,7 +111,7 @@ class CircleData(object):
             self.consumption_per_interval[i] = sum(c) / len(c)
 
 class EnergyData(object):
-    def __init__(self, circle_idx_by_mac, log_path, slow_log_path, cache_path, start_time, first_run, slow_interval=10*60, fast_interval=10):
+    def __init__(self, circle_idx_by_mac, log_path, slow_log_path, cache_path, start_time, first_run, slow_interval=10*60, fast_interval=10, reanalyze_intervals=None):
         self.circle_idx_by_mac = circle_idx_by_mac
         self.cache_fname = path.join(cache_path, 'energy_data.json')
         self.slow_interval = slow_interval
@@ -159,7 +159,10 @@ class EnergyData(object):
         if self.load_cache():
             p = ProgressBar('re-analyze last 24 hours', min(n_intervals, self.intervals_per_day))
             self.resize_intervals(n_intervals)
-            for i in range(max(len(self.intervals)-self.intervals_per_day, 0), len(self.intervals)):
+            #nicht 10, sondern: self.intervals_per_day
+            if reanalyze_intervals is None:
+                reanalyze_intervals = self.intervals_per_day
+            for i in range(max(len(self.intervals)-reanalyze_intervals, 0), len(self.intervals)):
                 self.update_interval(i)
                 p.next()
         else:
@@ -225,6 +228,37 @@ class EnergyData(object):
         plt.legend(loc='best')
         plt.pause(0.001)
         # plt.show()
+
+
+    def plot_current_and_historic_consumption_2(self, idx, wait):
+        plt.ioff() if wait else plt.ion()
+        plt.clf()
+        day_start = False
+        accumulated = True
+        # limit_time = True
+        func = np.cumsum if accumulated else lambda x: np.array(x)
+        idx = len(self.intervals)-1 if day_start else idx
+        time_start = self.day_start if day_start else self.interval2timestamp(idx)
+        x = [time_start + timedelta(minutes=self.interval_length * i) for i in range(self.intervals_per_day)]
+        # if limit_time:
+        #     x = [:]
+        consumption_per_interval = self.consumption_per_interval if day_start else [self.consumption_per_interval[(idx+i+self.intervals_offset)%self.intervals_per_day] for i in range(self.intervals_per_day)]
+        plt.plot(x, func(consumption_per_interval), label='historic consumption', color='blue')
+
+        plt.plot(x, func(consumption_per_interval)*0.9, label='4/5th feedback', color='green')
+        if accumulated:
+            plt.ylim(0,2500)
+            # plt.plot([x[-2]]*2,np.sum(self.consumption_per_interval)+np.array([self.std,-self.std]),'bo')
+            plt.plot([x[-2]]*3,np.sum(self.consumption_per_interval)*0.9+np.array([self.std,0,-self.std]),'go')
+
+        i0 = self.day_start_interval(idx) if day_start else idx
+        while i0 > 0:
+            if i0 > 0 and idx-i0 > 0:
+                plt.plot(x[:idx-i0+1], func(self.intervals[i0:i0+len(x)]), label='current consumption', color='red')
+                # plt.plot(x[:idx-i0+1], self.intervals[i0:], label='current consumption')
+            i0 -= self.intervals_per_day
+        plt.legend(loc='best')
+        plt.show() if wait else plt.pause(0.001)
 
     def accumulated_consumption(self, begin, end, i): # for an interval
         t = []
