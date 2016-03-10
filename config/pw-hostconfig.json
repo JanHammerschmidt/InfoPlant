@@ -1,5 +1,4 @@
 {
-	"config_path": "../config",
 	"log_path": "../log/datalog",
 	"slow_log_path": "../log/slow_log",
 	"debug_path": "../log/debug",
