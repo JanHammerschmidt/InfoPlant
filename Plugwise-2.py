@@ -9,7 +9,7 @@ import numpy as np
 cfg_plot_data = True
 cfg_print_data = True
 
-if True:
+if False:
     circle_from_mac =  {'78DB3F':1, '8FB7BB':2, '8FB86B':3, '8FD194':4,
                      '8FD25D':5, '8FD2DE':6, '8FD33A':7, '8FD358':8, '8FD472':9}
 
