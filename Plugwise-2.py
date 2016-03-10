@@ -18,8 +18,9 @@ if False:
     energy_data = EnergyData(circle_from_mac, "/Users/jhammers/Dropbox/Eigene Dateien/phd/Projekte/2_Power Plant/energiedaten von thomas/data@home/",
                              "/Users/jhammers/InfoPlant", "/Users/jhammers/InfoPlant", pd.Timestamp('2016-01-04T15:51:40.296000'), False, reanalyze_intervals=10)
     energy_data.calculate_std()
+    energy_data.smooth_avg_consumption()
     # energy_data.comparison_avg_accumulated_consumption_24h(pd.Timestamp('2016-01-05T15:51:40.296000'))
-    energy_data.comparison_avg_accumulated_consumption_24h(energy_data.interval2timestamp(len(energy_data.intervals)-1) - timedelta(seconds=5))
+    # energy_data.comparison_avg_accumulated_consumption_24h(energy_data.interval2timestamp(len(energy_data.intervals)-1) - timedelta(seconds=5))
     # energy_data.current_accumulated_consumption_24h()
     # energy_data.comparison_avg_accumulated_consumption_24h(energy_data.day_start) # - timedelta(hours=20,minutes=1,seconds=5)
     # energy_data.update_day_start(get_now())
@@ -586,12 +587,23 @@ class PWControl(object):
             if self.twig_limiter.update(twig):
                 print("!!TWIG UPDATE!!", twig)
 
+            current_consumption = energy_data.current_consumption()
+            comparison_consumption = energy_data.comparison_consumption()
+            diff = current_consumption - comparison_consumption
+            if diff > 0:
+                leds = min(diff /energy_data.std_intervals, 1)
+            else:
+                lower = max(comparison_consumption - energy_data.std_intervals, 0)
+                leds = 1 + diff / (comparison_consumption - lower)
+
             if cfg_print_data:
-                print("cur:", twig, energy_data.current_consumption(), energy_data.current_accumulated_consumption_24h(),
-                      energy_data.comparison_avg_accumulated_consumption_24h(now), now.isoformat())
+                print("cur:", twig, leds, energy_data.current_consumption(), energy_data.comparison_consumption(),
+                      energy_data.current_accumulated_consumption_24h(), energy_data.comparison_avg_accumulated_consumption_24h(now), now.isoformat())
 
             if minute != prev_minute:
                 energy_data.calc_avg_consumption_per_interval()
+                energy_data.smooth_avg_consumption()
+                energy_data.calculate_std()
                 if cfg_plot_data:
                     energy_data.plot_current_and_historic_consumption()
 
