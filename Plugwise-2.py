@@ -49,7 +49,7 @@ def get_timestamp():
 
 class Limiter(object):
     def __init__(self, min_deviation = 0.2, min_timediff = timedelta(hours=1), first_update = timedelta(minutes=1), init_value = -999):
-        self.last_update = get_now() - first_update
+        self.last_update = get_now() - min_timediff + first_update
         self.value = init_value
         self.min_deviation = min_deviation
         self.min_timediff = min_timediff
