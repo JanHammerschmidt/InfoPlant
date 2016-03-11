@@ -606,7 +606,8 @@ class PWControl(object):
             if not start_interval_updated:
                 start_interval_updated = energy_data.update_start_interval()
 
-            ts = pd.Timestamp(get_now())
+            now = get_now()
+            ts = pd.Timestamp(now)
             diff = energy_data.current_accumulated_consumption_24h() - energy_data.comparison_avg_accumulated_consumption_24h(now)
             twig = np.clip(diff, -energy_data.std, energy_data.std) / energy_data.std
             plant_plot.twig.append((ts,twig)) # positive values mean: more consumption!
