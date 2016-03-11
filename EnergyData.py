@@ -300,12 +300,12 @@ class EnergyData(object):
             cc = c.accumulated_consumption(begin, end)
             c.intervals[i] = cc
             t.append(cc)
-        return sum(t)
+        return sum(t) # TODO: this is not really necessary: exchange for the line below
         # return sum(c.accumulated_consumption(begin, end) for c in self.circles.values())
 
     def calc_avg_consumption_per_interval(self):
         consumptions = [[] for _ in range(self.intervals_per_day)]
-        for i,c in enumerate(self.intervals, start=self.intervals_offset):
+        for i,c in enumerate(self.intervals[:-1], start=self.intervals_offset): #skip the last interval (the one that is currently filled up)
             consumptions[i % self.intervals_per_day].append(c)
         for i,c in enumerate(consumptions):
             if len(c) > 0:
