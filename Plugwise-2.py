@@ -6,6 +6,30 @@ import time, calendar, os, logging, json
 import pandas as pd
 import numpy as np
 
+import matplotlib.pyplot as plt
+class PlantPlot(object):
+    def __init__(self):
+        self.twig = []
+        self.led = []
+        self.twig_update = []
+
+    def unzip(self, l):
+        return tuple([list(t) for t in zip(*l)])
+
+    def plot(self):
+        plt.ion()
+        plt.figure(1)
+        plt.clf()
+        plt.plot(*self.unzip(self.led), color='yellow', label='LED')
+        plt.plot(*self.unzip(self.twig), color='red', label='twigs')
+        if len(self.twig_update) > 0:
+            x,y = self.unzip(self.twig_update)
+            plt.plot(x, y, 'bo', label='Twig Update')
+        plt.legend(loc='best')
+        plt.pause(0.001)
+
+plant_plot = PlantPlot()
+
 cfg_plot_data = True
 cfg_print_data = True
 
@@ -537,8 +561,6 @@ class PWControl(object):
         energy_data.plot_current_and_historic_consumption()
         start_interval_updated = True
 
-        ## TODO: read all previous data to logging-facility (probably earlier!)
-
         offline = []
       
         #Inform network that nodes are allowed to join the network
@@ -584,10 +606,13 @@ class PWControl(object):
             if not start_interval_updated:
                 start_interval_updated = energy_data.update_start_interval()
 
+            ts = pd.Timestamp(get_now())
             diff = energy_data.current_accumulated_consumption_24h() - energy_data.comparison_avg_accumulated_consumption_24h(now)
             twig = np.clip(diff, -energy_data.std, energy_data.std) / energy_data.std
+            plant_plot.twig.append((ts,twig)) # positive values mean: more consumption!
             if self.twig_limiter.update(twig):
                 print("!!TWIG UPDATE!!", twig)
+                plant_plot.twig_update.append((ts,twig))
 
             current_consumption = energy_data.current_consumption()
             comparison_consumption = energy_data.comparison_consumption()
@@ -597,6 +622,7 @@ class PWControl(object):
             else:
                 lower = max(comparison_consumption - max(energy_data.std_intervals,1), 0)
                 leds = max(diff / (comparison_consumption - lower), -1)
+            plant_plot.led.append((ts,leds))
 
             if cfg_print_data:
                 print("cur: %.2f/%.2f %.2f/%.2f %.2f/%.2f %s" % (twig, leds, energy_data.current_consumption(), energy_data.comparison_consumption(),
@@ -608,6 +634,7 @@ class PWControl(object):
                 energy_data.calculate_std()
                 if cfg_plot_data:
                     energy_data.plot_current_and_historic_consumption()
+                    plant_plot.plot()
 
             new_offline = [c.short_mac() for c in self.circles if not c.online]
             if len(offline) > 0 and len(new_offline) == 0:
