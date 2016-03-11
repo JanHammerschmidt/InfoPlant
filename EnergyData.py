@@ -447,12 +447,15 @@ class EnergyData(object):
         v = [] # this is for the 24h consumptions
         v2 = [] # this is for the std of the interval consumptions
         for i in range(start,end): # i: end-time of a day-interval
-            for i1 in range(i,len(self.intervals),self.intervals_per_day): # check all possible end-times
-                i0 = i1 - self.intervals_per_day # i0: start of the day-interval
-                if i0 >= 0: # within measured time?
-                    v.append(sum(self.intervals[i0:i1])) # 24h consumption
-                cmp_interval = (i1+self.intervals_offset) % self.intervals_per_day
-                d = self.intervals[i1] - self.consumption_per_interval[cmp_interval]
-                v2.append(d*d)
-        self.std = np.std(v)
-        self.std_intervals = sqrt(np.mean(v2))
+            for i1 in range(i,len(self.intervals)-1,self.intervals_per_day): # check all possible end-times (skip the very last interval)
+                if i1 >= 0:
+                    i0 = i1 - self.intervals_per_day # i0: start of the day-interval
+                    if i0 >= 0: # within measured time?
+                        v.append(sum(self.intervals[i0:i1])) # 24h consumption
+                    cmp_interval = (i1+self.intervals_offset) % self.intervals_per_day
+                    d = self.intervals[i1] - self.consumption_per_interval_smoothed[cmp_interval]
+                    v2.append(d*d)
+        if len(v) > 5:
+            self.std = np.std(v)
+        if len(v2) > 5:
+            self.std_intervals = sqrt(np.mean(v2))
