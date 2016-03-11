@@ -530,6 +530,8 @@ class PWControl(object):
 
         energy_data.update_intervals()
         energy_data.calc_avg_consumption_per_interval()
+        energy_data.smooth_avg_consumption()
+        energy_data.calculate_std()
         energy_data.update_start_interval()
         energy_data.save_cache()
         energy_data.plot_current_and_historic_consumption()
