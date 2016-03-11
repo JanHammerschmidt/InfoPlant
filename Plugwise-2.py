@@ -615,7 +615,7 @@ class PWControl(object):
                 plant_plot.twig_update.append((ts,twig))
 
             current_consumption = energy_data.current_consumption()
-            comparison_consumption = energy_data.comparison_consumption()
+            comparison_consumption = max(energy_data.comparison_consumption(), 1) # everything below 1W should be "good" by default ..
             diff = current_consumption - comparison_consumption
             if diff > 0:
                 leds = min(diff / energy_data.std_intervals, 1)
