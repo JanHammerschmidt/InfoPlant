@@ -597,8 +597,8 @@ class PWControl(object):
                 leds = 1 + diff / (comparison_consumption - lower)
 
             if cfg_print_data:
-                print("cur:", twig, leds, energy_data.current_consumption(), energy_data.comparison_consumption(),
-                      energy_data.current_accumulated_consumption_24h(), energy_data.comparison_avg_accumulated_consumption_24h(now), now.isoformat())
+                print("cur: %.2f/%.2f %.2f/%.2f %.2f/%.2f %s" % (twig, leds, energy_data.current_consumption(), energy_data.comparison_consumption(),
+                      energy_data.current_accumulated_consumption_24h(), energy_data.comparison_avg_accumulated_consumption_24h(now), now.isoformat()))
 
             if minute != prev_minute:
                 energy_data.calc_avg_consumption_per_interval()
