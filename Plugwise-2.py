@@ -591,10 +591,10 @@ class PWControl(object):
             comparison_consumption = energy_data.comparison_consumption()
             diff = current_consumption - comparison_consumption
             if diff > 0:
-                leds = min(diff /energy_data.std_intervals, 1)
+                leds = min(diff / energy_data.std_intervals, 1)
             else:
-                lower = max(comparison_consumption - energy_data.std_intervals, 0)
-                leds = 1 + diff / (comparison_consumption - lower)
+                lower = max(comparison_consumption - max(energy_data.std_intervals,1), 0)
+                leds = max(diff / (comparison_consumption - lower), -1)
 
             if cfg_print_data:
                 print("cur: %.2f/%.2f %.2f/%.2f %.2f/%.2f %s" % (twig, leds, energy_data.current_consumption(), energy_data.comparison_consumption(),
