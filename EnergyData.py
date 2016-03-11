@@ -398,8 +398,8 @@ class EnergyData(object):
         return sum(c.current_consumption for c in self.circles.values())
 
     def comparison_consumption(self): # returns the (smoothed version of the) average consumption for the current time interval
-        cmp_interval = (len(self.intervals-1) + self.intervals_offset) % self.intervals_per_day # this is the idx of the "current" comparison interval
-        self.consumption_per_interval_smoothed[cmp_interval] * (60 / self.interval_length)
+        cmp_interval = (len(self.intervals)-1 + self.intervals_offset) % self.intervals_per_day # this is the idx of the "current" comparison interval
+        return self.consumption_per_interval_smoothed[cmp_interval] * (60 / self.interval_length) # convert from Wh to (average) W
 
     def current_accumulated_daily_consumption(self):
         return sum(self.intervals[max(self.current_start_interval,0):])
