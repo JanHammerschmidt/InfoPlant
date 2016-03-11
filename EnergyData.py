@@ -218,6 +218,33 @@ class EnergyData(object):
 
     def plot_current_and_historic_consumption(self):
         plt.ion()
+        plt.figure(0)
+        plt.clf()
+        start = max(len(self.intervals)-self.intervals_per_day, 0)
+        interval_range = range(start, len(self.intervals))
+        x = [self.interval2timestamp(i) for i in interval_range]
+
+        historic_consumption = [self.consumption_per_interval[(i+self.intervals_offset)%self.intervals_per_day] for i in interval_range]
+        plt.plot(x,np.cumsum(historic_consumption), label = 'historic consumption', color='blue')
+
+        y = np.cumsum(self.intervals[-self.intervals_per_day:])
+        plt.plot(x,y, label='current consumption', color='red')
+
+        plt.legend(loc='best')
+        plt.pause(0.001)
+
+        plt.figure(2)
+        plt.clf()
+        plt.plot(x, historic_consumption, label='historic consumption', color='blue')
+        historic_consumption = [self.consumption_per_interval_smoothed[(i+self.intervals_offset)%self.intervals_per_day] for i in interval_range]
+        plt.plot(x, historic_consumption, label='historic consumption (smoothed)', color='yellow')
+        plt.plot(x, self.intervals[-self.intervals_per_day:], label='current consumption', color='red')
+        plt.legend(loc='best')
+        plt.pause(0.001)
+
+    def plot_current_and_historic_consumption_(self):
+        plt.ion()
+        plt.figure(0)
         plt.clf()
         x = [self.day_start + timedelta(minutes=self.interval_length * i) for i in range(self.intervals_per_day)]
         plt.plot(x, np.cumsum(self.consumption_per_interval), label='historic consumption', color='blue')
