@@ -1,27 +1,36 @@
-from plotly.offline import plot
-from plotly.graph_objs import Scatter, Layout, Bar, XAxis, Legend
 from math import floor
 from time import time
 
-# data
-bar = Bar(x=[], y=[], name='aktueller Verbrauch')
-scatter = Scatter(x=[], y=[], name='durchschnittlicher Verbrauch')
+def init_plotly():
+    global plot, Scatter, Layout, Bar, Xaxis, YAxis, Legend, Marker
+    global bar, scatter, layout, data, last_bar
+    from plotly.offline import plot
+    from plotly.graph_objs import Scatter, Layout, Bar, XAxis, YAxis, Legend, Marker
 
-#layout
-layout = Layout(
-    title="Stromverbrauch der letzten 24 Stunden",
-    xaxis= XAxis(tickmode='array', ticktext=[], tickvals=[], range=[-0.5,1], tickangle=-45),
-    legend=Legend(bordercolor='#FFFFFF', borderwidth=3, xanchor="right") #x=1.0,y=1.0 bgcolor='#E2E2E2'
-)
+    # data
+    bar = Bar(x=[], y=[], name='Aktueller Verbrauch')
+    last_bar = Bar(x=[], y=[], name='Bisheriger Verbrauch<br>in aktueller Stunde', marker=dict(color='rgb(159, 197, 232)'))
+    scatter = Scatter(x=[], y=[], name='Durchschnittlicher Verbrauch', mode="lines+markers")
 
-data = {
-    "data": [bar,scatter],
-    "layout": layout
-}
+    #layout
+    layout = Layout(
+        title="Stromverbrauch der letzten 24 Stunden", barmode='stacked',
+        xaxis= XAxis(tickmode='array', ticktext=[], tickvals=[], range=[-0.5,1], tickangle=-45),
+        yaxis= YAxis(title='Wh'),
+        legend=Legend(bordercolor='#FFFFFF', borderwidth=3, xanchor="right") #x=1.0,y=1.0 bgcolor='#E2E2E2'
+    )
+
+    data = {
+        "data": [bar,scatter,last_bar],
+        "layout": layout
+    }
+
 
 def plot_plotly(current_consumption, avg_consumption, xticks):
-    bar.x = list(range(1,len(current_consumption)*2,2))
-    bar.y = current_consumption
+    bar.x = list(range(1,len(current_consumption)*2-2,2))
+    bar.y = current_consumption[:-1]
+    last_bar.x = [len(current_consumption)*2-1]
+    last_bar.y = [current_consumption[-1]]
 
     scatter.x = list(range(1,len(avg_consumption)*2,2))
     scatter.y = avg_consumption

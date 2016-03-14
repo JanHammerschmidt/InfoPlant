@@ -1,13 +1,20 @@
 from serial.serialutil import SerialException
 from plugwise.api import *
 from datetime import datetime, timedelta
-from EnergyData import EnergyData
+from EnergyData import EnergyData, init_matplotlib
+from plotly_plot import init_plotly
 import time, calendar, os, logging, json
 import pandas as pd
 import numpy as np
 
 cfg_plot_data = True
 cfg_print_data = True
+cfg_plot_plotly = True
+
+if cfg_plot_plotly:
+    init_plotly()
+if cfg_plot_data:
+    init_matplotlib()
 
 import matplotlib.pyplot as plt
 class PlantPlot(object):
@@ -49,6 +56,10 @@ if False:
     # energy_data.current_accumulated_consumption_24h()
     # energy_data.comparison_avg_accumulated_consumption_24h(energy_data.day_start) # - timedelta(hours=20,minutes=1,seconds=5)
     # energy_data.update_day_start(get_now())
+    if True:
+        init_plotly()
+        energy_data.plot_current_and_historic_consumption()
+        exit()
     idx = len(energy_data.intervals)-1
     if False:
         energy_data.plot_current_and_historic_consumption_2(energy_data.timestamp2interval(energy_data.day_start + timedelta(hours=8)), True)
@@ -636,9 +647,10 @@ class PWControl(object):
                 energy_data.smooth_avg_consumption()
                 energy_data.calculate_std()
                 if cfg_plot_data:
-                    # print("plotly: %s" % get_now().isoformat())
                     energy_data.plot_current_and_historic_consumption()
-                    #plant_plot.plot()
+                if cfg_plot_plotly:
+                    # print("plotly: %s" % get_now().isoformat())
+                    plant_plot.plot()
 
             new_offline = [c.short_mac() for c in self.circles if not c.online]
             if len(offline) > 0 and len(new_offline) == 0:

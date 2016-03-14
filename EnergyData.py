@@ -4,12 +4,17 @@ from sys import stdout
 from os import path
 from smooth import smooth
 from plotly_plot import plot_plotly
-import os, codecs, json, matplotlib
+import os, codecs, json
 import pandas as pd, numpy as np
-import matplotlib.pyplot as plt
 timedelta = pd.offsets.timedelta
 
-matplotlib.style.use('ggplot')
+
+def init_matplotlib():
+    global plt
+    import matplotlib.pyplot as plt
+    import matplotlib
+    matplotlib.style.use('ggplot')
+
 
 class ProgressBar:
     def __init__(self, name, nitems):
@@ -223,6 +228,20 @@ class EnergyData(object):
     # def plot_current_and_historic_consumption(self):
     #     plot_plotly()
     #     self.plot_current_and_historic_consumption2()
+
+    def plot_plotly(self):
+        intervals_per_hour = self.intervals_per_hour
+        cur_interval = len(self.intervals)-1
+        part_hour = ((cur_interval-1+self.intervals_offset))%intervals_per_hour
+        start = cur_interval - part_hour - self.intervals_per_day + intervals_per_hour
+        entries = range(start,cur_interval+1,intervals_per_hour)
+        x = [str(self.interval2timestamp(i).hour)+":00" for i in entries]
+        x.append(str(self.interval2timestamp(entries[-1]+intervals_per_hour).hour)+":00")
+        current_consumption = [sum(self.intervals[i:i+intervals_per_hour]) for i in entries]
+        avg_consumption = [sum([self.consumption_per_interval[self.cmp_interval(j)] for j in range(i,i+intervals_per_hour)]) for i in entries]
+        # plt.plot(range(len(y)),y)
+        # plt.pause(0.001)
+        plot_plotly(current_consumption, avg_consumption, x)
 
     def plot_current_and_historic_consumption(self):
         # plt.ion()
