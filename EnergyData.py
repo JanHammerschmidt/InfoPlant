@@ -3,6 +3,7 @@ from math import ceil, sqrt
 from sys import stdout
 from os import path
 from smooth import smooth
+from plotly_plot import plot_plotly
 import os, codecs, json, matplotlib
 import pandas as pd, numpy as np
 import matplotlib.pyplot as plt
@@ -125,6 +126,7 @@ class EnergyData(object):
         self.std = 500 # this is a rather arbitrary value ..
         self.std_intervals = 15 # this as well :P
         self.interval_length = 10 # minutes
+        self.intervals_per_hour = 6
         self.interval_length_s = self.interval_length * 60
         self.interval_td = timedelta(minutes=self.interval_length)
         self.intervals_per_day = 24*60/self.interval_length
@@ -218,7 +220,34 @@ class EnergyData(object):
             print("new day_start: %s" % self.day_start.isoformat())
         return ret
 
+    # def plot_current_and_historic_consumption(self):
+    #     plot_plotly()
+    #     self.plot_current_and_historic_consumption2()
+
     def plot_current_and_historic_consumption(self):
+        # plt.ion()
+        # plt.figure(3)
+        # plt.clf()
+        intervals_per_hour = self.intervals_per_hour
+        cur_interval = len(self.intervals)-1
+        part_hour = ((cur_interval-1+self.intervals_offset))%intervals_per_hour
+        start = cur_interval - part_hour - self.intervals_per_day + intervals_per_hour
+        entries = range(start,cur_interval+1,intervals_per_hour)
+        x = [str(self.interval2timestamp(i).hour)+":00" for i in entries]
+        x.append(str(self.interval2timestamp(entries[-1]+intervals_per_hour).hour)+":00")
+        # x = [self.interval2timestamp(i).replace(minute=0) for i in entries]
+        y = [sum(self.intervals[i:i+intervals_per_hour]) for i in entries]
+        current_consumption = y
+        # plt.bar(range(len(y)),y)
+        # plt.xticks(range(len(x)),x)
+        y = [sum([self.consumption_per_interval[self.cmp_interval(j)] for j in range(i,i+intervals_per_hour)]) for i in entries]
+        # plt.plot(range(len(y)),y)
+        # plt.pause(0.001)
+        plot_plotly(current_consumption, y, x)
+        self.plot_current_and_historic_consumption1()
+
+
+    def plot_current_and_historic_consumption1(self):
         plt.ion()
         plt.figure(0)
         plt.clf()
@@ -244,7 +273,7 @@ class EnergyData(object):
         plt.legend(loc='best')
         plt.pause(0.001)
 
-    def plot_current_and_historic_consumption_(self):
+    def plot_current_day(self):
         plt.ion()
         plt.figure(0)
         plt.clf()
@@ -260,7 +289,7 @@ class EnergyData(object):
         plt.pause(0.001)
         # plt.show()
 
-    def plot_current_and_historic_consumption_2(self, idx, wait):
+    def plot_data(self, idx, wait):
         plt.ioff() if wait else plt.ion()
         plt.clf()
         day_start = False
@@ -370,6 +399,12 @@ class EnergyData(object):
     def interval2timestamp(self, i):
         return self.intervals_start + timedelta(minutes = i * self.interval_length)
 
+    def cmp_interval(self, i): #i: interval index
+        return (i + self.intervals_offset) % self.intervals_per_day # returns index for self.consumption_per_interval
+
+    def cmp_interval_ts(self, i): #i: idx for self.consumption_per_interval
+        return self.day_start + timedelta(minutes=i * self.interval_length)
+
     def day_start_interval(self, i):
         return (i/self.intervals_per_day) * self.intervals_per_day - self.intervals_offset + \
                (self.intervals_per_day if i%self.intervals_per_day > (self.intervals_per_day - self.intervals_offset) else 0)
@@ -399,7 +434,7 @@ class EnergyData(object):
         return sum(c.current_consumption for c in self.circles.values())
 
     def comparison_consumption(self): # returns the (smoothed version of the) average consumption for the current time interval
-        cmp_interval = (len(self.intervals)-1 + self.intervals_offset) % self.intervals_per_day # this is the idx of the "current" comparison interval
+        cmp_interval = self.cmp_interval(len(self.intervals)-1)
         return self.consumption_per_interval_smoothed[cmp_interval] * (60 / self.interval_length) # convert from Wh to (average) W
 
     def current_accumulated_daily_consumption(self):
@@ -420,7 +455,7 @@ class EnergyData(object):
     def comparison_avg_accumulated_consumption_24h_2(self, ts):
         consumption = sum(self.consumption_per_interval) # avg total consumption
         idx = self.timestamp2interval(ts) # index of current interval
-        i = (idx+self.intervals_offset) % self.intervals_per_day # this is the idx of the "current" comparison interval that is being filled up
+        i = self.cmp_interval(idx) # this is the idx of the "current" comparison interval that is being filled up
         part_interval = (self.interval2timestamp(idx) - ts).total_seconds() / self.interval_length_s
         return consumption - part_interval * self.consumption_per_interval[i]
 
@@ -431,7 +466,7 @@ class EnergyData(object):
         if ts > interval_ts: # current time is 'beyond' intervals => all intervals are filled up => use full comparison data
             return consumption
         else:
-            cmp_interval = (current_interval+self.intervals_offset) % self.intervals_per_day # this is the idx of the current *comparison* interval that is being filled up
+            cmp_interval = self.cmp_interval(current_interval) # this is the idx of the current *comparison* interval that is being filled up
             part_sec = (interval_ts - ts).total_seconds()
             if part_sec > self.interval_length_s: # ts is before the current interval => shouldn't happen!
                 print("!!warning: ts before current interval")
@@ -453,7 +488,7 @@ class EnergyData(object):
                     i0 = i1 - self.intervals_per_day # i0: start of the day-interval
                     if i0 >= 0: # within measured time?
                         v.append(sum(self.intervals[i0:i1])) # 24h consumption
-                    cmp_interval = (i1+self.intervals_offset) % self.intervals_per_day
+                    cmp_interval = self.cmp_interval(i1)
                     d = self.intervals[i1] - self.consumption_per_interval_smoothed[cmp_interval]
                     v2.append(d*d)
         if len(v) > 5:

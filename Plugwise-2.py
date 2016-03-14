@@ -6,6 +6,9 @@ import time, calendar, os, logging, json
 import pandas as pd
 import numpy as np
 
+cfg_plot_data = True
+cfg_print_data = True
+
 import matplotlib.pyplot as plt
 class PlantPlot(object):
     def __init__(self):
@@ -30,18 +33,16 @@ class PlantPlot(object):
 
 plant_plot = PlantPlot()
 
-cfg_plot_data = True
-cfg_print_data = True
-
 if False:
     circle_from_mac =  {'78DB3F':1, '8FB7BB':2, '8FB86B':3, '8FD194':4,
                      '8FD25D':5, '8FD2DE':6, '8FD33A':7, '8FD358':8, '8FD472':9}
 
     # data@home/ # pd.Timestamp('2016-01-04T15:51:40.296000')
     # data # pd.Timestamp('2015-12-17T23:27:40.125000')
-    energy_data = EnergyData(circle_from_mac, "/Users/jhammers/Dropbox/Eigene Dateien/phd/Projekte/2_Power Plant/energiedaten von thomas/data@home/",
-                             "/Users/jhammers/InfoPlant", "/Users/jhammers/InfoPlant", pd.Timestamp('2016-01-04T15:51:40.296000'), False, reanalyze_intervals=10)
+    energy_data = EnergyData(circle_from_mac, "/Users/jhammers/Dropbox/Eigene Dateien/phd/Projekte/2_Power Plant/energiedaten von thomas/data/",
+                             "/Users/jhammers/InfoPlant", "/Users/jhammers/InfoPlant", pd.Timestamp('2015-12-17T23:27:40.125000'), False, reanalyze_intervals=10)
     energy_data.calculate_std()
+    print(energy_data.std, energy_data.std_intervals)
     energy_data.smooth_avg_consumption()
     # energy_data.comparison_avg_accumulated_consumption_24h(pd.Timestamp('2016-01-05T15:51:40.296000'))
     # energy_data.comparison_avg_accumulated_consumption_24h(energy_data.interval2timestamp(len(energy_data.intervals)-1) - timedelta(seconds=5))
@@ -558,7 +559,8 @@ class PWControl(object):
         energy_data.calculate_std()
         energy_data.update_start_interval()
         energy_data.save_cache()
-        energy_data.plot_current_and_historic_consumption()
+        if cfg_plot_data:
+            energy_data.plot_current_and_historic_consumption()
         start_interval_updated = True
 
         offline = []
@@ -634,8 +636,9 @@ class PWControl(object):
                 energy_data.smooth_avg_consumption()
                 energy_data.calculate_std()
                 if cfg_plot_data:
+                    # print("plotly: %s" % get_now().isoformat())
                     energy_data.plot_current_and_historic_consumption()
-                    plant_plot.plot()
+                    #plant_plot.plot()
 
             new_offline = [c.short_mac() for c in self.circles if not c.online]
             if len(offline) > 0 and len(new_offline) == 0:
@@ -669,7 +672,8 @@ try:
     if not main.gather_historic_data:
         energy_data = EnergyData(main.bymac, log_path, slow_log_path, energy_log_path, main.session_start, main.first_run)
         # energy_data.update_day_start(get_now())
-        energy_data.plot_current_and_historic_consumption()
+        if cfg_plot_data:
+            energy_data.plot_current_and_historic_consumption()
         main.run()
 except:
     close_logcomm()
