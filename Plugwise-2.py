@@ -9,7 +9,7 @@ from plugwise.api import *
 from datetime import datetime, timedelta
 from EnergyData import EnergyData, init_matplotlib
 from plotly_plot import init_plotly
-import time, calendar, os, logging, json
+import time, calendar, os, logging, json, traceback
 import pandas as pd
 import numpy as np
 
@@ -684,16 +684,28 @@ class PWControl(object):
 
 init_logger(debug_path+"pw-logger.log", "pw-logger")
 
+executable = sys.executable
+args = sys.argv[:]
+args[0] = '"%s"' % args[0]
+args.insert(0, sys.executable)
+
+# print(get_timestamp())
+# energy_data = EnergyData(log_path, slow_log_path, energy_log_path, pd.Timestamp('2016-01-04T15:51:40')) # only temporary!
+main=PWControl(gather_historic_data=False)
+if main.gather_historic_data:
+    exit()
+energy_data = EnergyData(main.bymac, log_path, slow_log_path, energy_log_path, main.session_start, main.first_run)
+# energy_data.update_day_start(get_now())
+if cfg_plot_data:
+    energy_data.plot_current_and_historic_consumption()
+
 try:
-    # print(get_timestamp())
-    # energy_data = EnergyData(log_path, slow_log_path, energy_log_path, pd.Timestamp('2016-01-04T15:51:40')) # only temporary!
-    main=PWControl(gather_historic_data=False)
-    if not main.gather_historic_data:
-        energy_data = EnergyData(main.bymac, log_path, slow_log_path, energy_log_path, main.session_start, main.first_run)
-        # energy_data.update_day_start(get_now())
-        if cfg_plot_data:
-            energy_data.plot_current_and_historic_consumption()
-        main.run()
-except:
-    close_logcomm()
+    main.run()
+except Exception as e:
+    print("%s: %s" % (type(e).__name__, str(e)))
+    with open('crashlog.log', 'a') as f:
+        f.write("%s: %s\n" % (datetime.now().isoformat(),  str(e)))
+        f.write(traceback.format_exc())
+        f.write('\n\n')
+    os.execvp(executable, args)
     raise
