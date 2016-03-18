@@ -149,13 +149,13 @@ class EnergyData(object):
             c.log.sort_index(inplace=True)
             dupl = c.log.index.duplicated(keep='first')
             if True in dupl:
-                print("log-index has %i duplicates! (for circle %i)" % (sum(dupl), c.idx))
+                # print("log-index has %i duplicates! (for circle %i)" % (sum(dupl), c.idx))
                 c.log = c.log[~dupl]
 
             c.slow_log.sort_index(inplace=True)
             dupl = c.slow_log.index.duplicated(keep='first')
             if True in dupl:
-                print("slow_log-index has %i duplicates! (for circle %i)" % (sum(dupl), c.idx))
+                # print("slow_log-index has %i duplicates! (for circle %i)" % (sum(dupl), c.idx))
                 c.slow_log = c.slow_log[~dupl]
 
             c.last_timestamp = self.intervals_start
