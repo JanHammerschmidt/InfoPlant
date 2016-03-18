@@ -1,3 +1,8 @@
+import sys
+if len(sys.argv) > 1:
+    from time import sleep
+    print("starting in 10 seconds...")
+    sleep(10)
 print("load dependencies")
 from serial.serialutil import SerialException
 from plugwise.api import *
