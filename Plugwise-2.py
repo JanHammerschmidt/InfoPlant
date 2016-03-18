@@ -179,9 +179,9 @@ class PWControl(object):
             info("adding circle: %s" % (c.attr['name'],))
             c.written_offline = 0
             if (c.online):
-                print("successfully added circle %s" % (c.short_mac(),))
+                print("successfully added circle %i (%s)" % (i+1,c.short_mac()))
             else:
-                print("!! failed to add circle %s" % (c.short_mac(),))
+                print("!! failed to add circle %i (%s)" % (i+1,c.short_mac()))
             return cfg
 
         cfg = add_circle(0)
@@ -659,11 +659,11 @@ class PWControl(object):
                     # print("plotly: %s" % get_now().isoformat())
                     plant_plot.plot()
 
-            new_offline = [c.short_mac() for c in self.circles if not c.online]
+            new_offline = [(i+1,c.short_mac()) for i,c in enumerate(self.circles) if not c.online]
             if len(offline) > 0 and len(new_offline) == 0:
                 print("all circles are back online")
             elif offline != new_offline:
-                print("!!the following circles are offline: %s" % (new_offline,))
+                print("!!the following circles are offline: %s" % new_offline)
             offline = new_offline
 
             self.log_status()
