@@ -10,10 +10,12 @@ timedelta = pd.offsets.timedelta
 
 
 def init_matplotlib():
+    stdout.write("init matplotlib..")
     global plt
     import matplotlib.pyplot as plt
     import matplotlib
     matplotlib.style.use('ggplot')
+    print(" done")
 
 
 class ProgressBar:

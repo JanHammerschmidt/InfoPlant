@@ -2,6 +2,8 @@ from math import floor
 from time import time
 
 def init_plotly():
+    from sys import stdout
+    stdout.write("init plotly..")
     global plot, Scatter, Layout, Bar, Xaxis, YAxis, Legend, Marker
     global bar, scatter, layout, data, last_bar
     from plotly.offline import plot
@@ -24,6 +26,7 @@ def init_plotly():
         "data": [bar,scatter,last_bar],
         "layout": layout
     }
+    print(" done")
 
 
 def plot_plotly(current_consumption, avg_consumption, xticks):

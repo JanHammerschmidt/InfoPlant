@@ -1,3 +1,4 @@
+print("load dependencies")
 from serial.serialutil import SerialException
 from plugwise.api import *
 from datetime import datetime, timedelta
@@ -16,7 +17,6 @@ if cfg_plot_plotly:
 if cfg_plot_data:
     init_matplotlib()
 
-import matplotlib.pyplot as plt
 class PlantPlot(object):
     def __init__(self):
         self.twig = []
@@ -142,6 +142,7 @@ class PWControl(object):
         #read the static configuration
         self.circles = []
         self.bymac = dict()
+        print("initialize stick")
         try:
             self.device = Stick(port, timeout=1)
         except (OSError, SerialException):
@@ -562,6 +563,7 @@ class PWControl(object):
 
         self.sync_time()
         self.dump_status()
+        print("get past interval data")
         self.log_recordings()
 
         energy_data.update_intervals()
