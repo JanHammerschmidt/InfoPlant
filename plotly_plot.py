@@ -52,7 +52,6 @@ def plot_plotly(current_consumption, avg_consumption, xticks):
         f.write(div)
         script = """
             <script type="text/javascript">
-            window.removeEventListener("resize");window.addEventListener("resize", function(){Plotly.Plots.resize(document.getElementById("%s"));});
             var last_update = %i;
             var now = Math.floor(Date.now() / 1000);
             var refresh = 10;
@@ -60,6 +59,7 @@ def plot_plotly(current_consumption, avg_consumption, xticks):
                 refresh = last_update+65 - now;
 
             setTimeout(function() {location.reload()}, refresh * 1000);
+            window.addEventListener("resize", function(){Plotly.Plots.resize(document.getElementById("%s"));});
             </script>
-         """
+         """ #window.removeEventListener("resize");
         f.write(script % (id, floor(time())))
