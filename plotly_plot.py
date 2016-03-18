@@ -19,7 +19,7 @@ def init_plotly():
         title="Stromverbrauch der letzten 24 Stunden", barmode='stacked',
         xaxis= XAxis(tickmode='array', ticktext=[], tickvals=[], range=[-0.5,1], tickangle=-45),
         yaxis= YAxis(title='Wh'),
-        legend=Legend(bordercolor='#FFFFFF', borderwidth=3, xanchor="right") #x=1.0,y=1.0 bgcolor='#E2E2E2'
+        legend=Legend(bordercolor='#FFFFFF', borderwidth=3, xanchor="right", x=1.0,y=1.11) # bgcolor='#E2E2E2'
     )
 
     data = {
