@@ -227,13 +227,15 @@ class EnergyData(object):
         part_hour = ((cur_interval-1+self.intervals_offset))%intervals_per_hour
         start = cur_interval - part_hour - self.intervals_per_day + intervals_per_hour
         entries = range(start,cur_interval+1,intervals_per_hour)
-        x = [str(self.interval2timestamp(i).hour)+":00" for i in entries]
+        hours = [self.interval2timestamp(i).hour for i in entries]
+        x = [str(i)+":00" for i in hours]
+        day_starts = [(i,self.interval2timestamp(entries[i])) for i,h in enumerate(hours) if h == 0]
         x.append(str(self.interval2timestamp(entries[-1]+intervals_per_hour).hour)+":00")
         current_consumption = [sum(self.intervals[i:i+intervals_per_hour]) for i in entries]
         avg_consumption = [sum([self.consumption_per_interval[self.cmp_interval(j)] for j in range(i,i+intervals_per_hour)]) for i in entries]
         # plt.plot(range(len(y)),y)
         # plt.pause(0.001)
-        plot_plotly(current_consumption, avg_consumption, x)
+        plot_plotly(current_consumption, avg_consumption, x, day_starts)
 
     def plot_current_and_historic_consumption(self):
         # plt.ion()
