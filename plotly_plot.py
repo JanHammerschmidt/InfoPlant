@@ -15,21 +15,17 @@ def init_plotly():
     bar = Bar(x=[], y=[], name='Aktueller Verbrauch')
     last_bar = Bar(x=[], y=[], name='Bisheriger Verbrauch<br>in aktueller Stunde', marker=dict(color='rgb(159, 197, 232)'))
     scatter = Scatter(x=[], y=[], name='Durchschnittlicher Verbrauch', mode="lines+markers")
-    # day_marker = Annotation(xref='x',yref='paper', y=0.9, x=26, text='asdf',showarrow=False)
-    # day_marker=Scatter(mode='text',textposition='middle right',showlegend=False)
 
     #layout
     layout = Layout(
         title="Stromverbrauch der letzten 24 Stunden", barmode='stacked',
         xaxis= XAxis(tickmode='array', ticktext=[], tickvals=[], range=[-0.5,1], tickangle=-45),
         yaxis= YAxis(title='Wh'),
-        #shapes=[day_line],
-        #annotations=[day_marker],
         legend=Legend(bordercolor='#FFFFFF', borderwidth=3, xanchor="right", x=1.0,y=1.11) # bgcolor='#E2E2E2'
     )
 
     data = {
-        "data": [bar,scatter,last_bar],#,day_marker],
+        "data": [bar,scatter,last_bar],
         "layout": layout
     }
     print(" done")
@@ -54,14 +50,6 @@ def plot_plotly(current_consumption, avg_consumption, xticks, day_starts):
     layout['annotations'] = [annotation]
     layout['shapes'] = [line]
 
-    print(day_starts)
-    # day_line['x0'] = day_starts[0] * 2
-    # day_line['x1'] = day_starts[0] * 2
-    # print(day_line)
-    # day_marker.x = [i*2 for i in day_starts]
-    # day_marker.y = [350]
-    # day_marker.text = ["  asdf"]
-
     xaxis = layout.xaxis
     for i in range(len(xticks)-1):
         xticks.insert((i+1)*2-1,'')
@@ -85,5 +73,5 @@ def plot_plotly(current_consumption, avg_consumption, xticks, day_starts):
             setTimeout(function() {location.reload()}, refresh * 1000);
             window.addEventListener("resize", function(){Plotly.Plots.resize(document.getElementById("%s"));});
             </script>
-         """ #window.removeEventListener("resize");
+         """
         f.write(script % (floor(time()), id))
