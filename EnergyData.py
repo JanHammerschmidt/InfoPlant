@@ -238,9 +238,9 @@ class EnergyData(object):
         plot_plotly(current_consumption, avg_consumption, x, day_starts)
 
     def plot_current_and_historic_consumption(self):
-        # plt.ion()
-        # plt.figure(3)
-        # plt.clf()
+        plt.ion()
+        plt.figure(3)
+        plt.clf()
         intervals_per_hour = self.intervals_per_hour
         cur_interval = len(self.intervals)-1
         part_hour = ((cur_interval-1+self.intervals_offset))%intervals_per_hour
@@ -250,14 +250,13 @@ class EnergyData(object):
         x.append(str(self.interval2timestamp(entries[-1]+intervals_per_hour).hour)+":00")
         # x = [self.interval2timestamp(i).replace(minute=0) for i in entries]
         y = [sum(self.intervals[i:i+intervals_per_hour]) for i in entries]
-        current_consumption = y
-        # plt.bar(range(len(y)),y)
-        # plt.xticks(range(len(x)),x)
+        plt.bar(range(len(y)),y)
+        plt.xticks(range(len(x)),x)
         y = [sum([self.consumption_per_interval[self.cmp_interval(j)] for j in range(i,i+intervals_per_hour)]) for i in entries]
-        # plt.plot(range(len(y)),y)
-        # plt.pause(0.001)
-        plot_plotly(current_consumption, y, x)
+        plt.plot(range(len(y)),y)
+        plt.pause(0.001)
         self.plot_current_and_historic_consumption1()
+        # self.plot_current_day()
 
 
     def plot_current_and_historic_consumption1(self):
@@ -288,7 +287,7 @@ class EnergyData(object):
 
     def plot_current_day(self):
         plt.ion()
-        plt.figure(0)
+        plt.figure(4)
         plt.clf()
         x = [self.day_start + timedelta(minutes=self.interval_length * i) for i in range(self.intervals_per_day)]
         plt.plot(x, np.cumsum(self.consumption_per_interval), label='historic consumption', color='blue')
@@ -479,7 +478,8 @@ class EnergyData(object):
             cmp_interval = self.cmp_interval(current_interval) # this is the idx of the current *comparison* interval that is being filled up
             part_sec = (interval_ts - ts).total_seconds()
             if part_sec > self.interval_length_s: # ts is before the current interval => shouldn't happen!
-                print("!!warning: ts before current interval")
+                print("!!warning: ts before current interval") # TODO!
+                # raise RuntimeError("ts before current interval")
             part = part_sec / self.interval_length_s
             return consumption - part * self.consumption_per_interval[cmp_interval]
 

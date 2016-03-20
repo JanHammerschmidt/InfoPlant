@@ -13,14 +13,18 @@ import time, calendar, os, logging, json, traceback
 import pandas as pd
 import numpy as np
 
-cfg_plot_data = True
-cfg_print_data = True
+cfg_plot_data = False
+cfg_print_data = False
 cfg_plot_plotly = True
+cfg_plot_plant = False
 
 if cfg_plot_plotly:
     init_plotly()
-if cfg_plot_data:
+if cfg_plot_data or cfg_plot_plant:
     init_matplotlib()
+    global plt
+    import matplotlib.pyplot as plt
+
 
 class PlantPlot(object):
     def __init__(self):
@@ -63,7 +67,7 @@ if False:
     # energy_data.update_day_start(get_now())
     if True:
         init_plotly()
-        energy_data.plot_current_and_historic_consumption()
+        energy_data.plot_plotly()
         exit()
     idx = len(energy_data.intervals)-1
     if False:
@@ -259,7 +263,7 @@ class PWControl(object):
         data = {'start': self.session_start.isoformat(), 'cfg': self.cfg, 'last_logs': lastlogs}
         with open(self.session_fname, 'w') as f:
             json.dump(data, f, default=lambda o: o.__dict__)
-        
+
     def dump_status(self):
         try:
             circles = [c.dump_status() for c in self.circles]
@@ -621,7 +625,8 @@ class PWControl(object):
             twig = np.clip(diff, -energy_data.std, energy_data.std) / energy_data.std
             plant_plot.twig.append((ts,twig)) # positive values mean: more consumption!
             if self.twig_limiter.update(twig):
-                print("!!TWIG UPDATE!!", twig)
+                if cfg_print_data:
+                    print("!!TWIG UPDATE!!", twig)
                 plant_plot.twig_update.append((ts,twig))
 
             current_consumption = energy_data.current_consumption()
@@ -646,6 +651,9 @@ class PWControl(object):
                     energy_data.plot_current_and_historic_consumption()
                 if cfg_plot_plotly:
                     # print("plotly: %s" % get_now().isoformat())
+                    energy_data.plot_plotly()
+                if cfg_plot_plant:
+
                     plant_plot.plot()
 
             new_offline = [(i+1,c.short_mac()) for i,c in enumerate(self.circles) if not c.online]
