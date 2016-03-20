@@ -575,11 +575,10 @@ class PWControl(object):
         energy_data.calc_avg_consumption_per_interval()
         energy_data.smooth_avg_consumption()
         energy_data.calculate_std()
-        energy_data.update_start_interval()
         energy_data.save_cache()
         if cfg_plot_data:
             energy_data.plot_current_and_historic_consumption()
-        start_interval_updated = True
+        # start_interval_updated = True
 
         offline = []
       
@@ -623,8 +622,6 @@ class PWControl(object):
                 self.setup_logfiles()
             self.ten_seconds()
             energy_data.update_intervals()
-            if not start_interval_updated:
-                start_interval_updated = energy_data.update_start_interval()
 
             now = get_now()
             ts = pd.Timestamp(now)
@@ -669,7 +666,6 @@ class PWControl(object):
             self.log_status()
             if hour != prev_hour:
                 energy_data.save_cache()
-                start_interval_updated = energy_data.update_start_interval()
                 if hour == 4:
                     self.sync_time()
                     info("Daily 4 AM: time synced circles.")

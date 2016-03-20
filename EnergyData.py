@@ -193,7 +193,6 @@ class EnergyData(object):
         self.consumption_per_interval = [0] * self.intervals_per_day # Wh!
         self.consumption_per_interval_smoothed = [0] * self.intervals_per_day
         self.calc_avg_consumption_per_interval()
-        self.update_start_interval(False)
 
         self.intervals_dirty = set()
 
@@ -217,15 +216,6 @@ class EnergyData(object):
         if i >= 0:
             t = self.intervals_start + timedelta(minutes=i*self.interval_length)
             self.intervals[i] = self.accumulated_consumption(t - self.interval_td, t, i)
-
-    def update_start_interval(self, check = True):
-        dsi = self.day_start_interval(len(self.intervals)-1)
-        ret = (dsi != self.current_start_interval) if check else True
-        self.current_start_interval = dsi
-        if ret:
-            self.day_start = self.interval2timestamp(dsi)
-            print("new day_start: %s" % self.day_start.isoformat())
-        return ret
 
     # def plot_current_and_historic_consumption(self):
     #     plot_plotly()
@@ -457,9 +447,6 @@ class EnergyData(object):
     def comparison_consumption(self): # returns the (smoothed version of the) average consumption for the current time interval
         cmp_interval = self.cmp_interval(len(self.intervals)-1)
         return self.consumption_per_interval_smoothed[cmp_interval] * (60 / self.interval_length) # convert from Wh to (average) W
-
-    def current_accumulated_daily_consumption(self):
-        return sum(self.intervals[max(self.current_start_interval,0):])
 
     def current_accumulated_consumption_24h(self):
         return sum(self.intervals[-self.intervals_per_day:])
