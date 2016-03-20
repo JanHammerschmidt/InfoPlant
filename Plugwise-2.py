@@ -260,14 +260,6 @@ class PWControl(object):
         with open(self.session_fname, 'w') as f:
             json.dump(data, f, default=lambda o: o.__dict__)
         
-    def log_status(self):
-        try:
-            circles = [c.get_status() for c in self.circles]
-            with open(self.statusfname, 'w') as f:
-                json.dump(circles, f, default=lambda o: o.__dict__)
-        except Exception as reason:
-            error("Error in dump_status: %s" % (reason,))
-
     def dump_status(self):
         try:
             circles = [c.dump_status() for c in self.circles]
@@ -663,7 +655,6 @@ class PWControl(object):
                 print("!!the following circles are offline: %s" % new_offline)
             offline = new_offline
 
-            self.log_status()
             if hour != prev_hour:
                 energy_data.save_cache()
                 if hour == 4:
