@@ -221,7 +221,7 @@ class EnergyData(object):
     #     plot_plotly()
     #     self.plot_current_and_historic_consumption2()
 
-    def plot_plotly(self):
+    def plot_plotly_one_day(self):
         intervals_per_hour = self.intervals_per_hour
         cur_interval = len(self.intervals)-1
         part_hour = ((cur_interval-1+self.intervals_offset))%intervals_per_hour
@@ -235,6 +235,18 @@ class EnergyData(object):
         avg_consumption = [sum([self.consumption_per_interval[self.cmp_interval(j)] for j in range(i,i+intervals_per_hour)]) for i in entries]
         # plt.plot(range(len(y)),y)
         # plt.pause(0.001)
+        plot_plotly(current_consumption, avg_consumption, x, day_starts)
+
+    def plot_plotly(self):
+        intervals_per_hour = self.intervals_per_hour
+        start = [self.interval2timestamp(i).minute for i in range(intervals_per_hour)].index(self.slow_interval / 60) # the first interval with :10 (beginning of an hour)
+        entries = range(start, len(self.intervals), intervals_per_hour)
+        hours = [self.interval2timestamp(i).hour for i in entries]
+        x = [str(i)+":00" for i in hours]
+        x.append(str(self.interval2timestamp(entries[-1]+intervals_per_hour).hour)+":00")
+        day_starts = [(i,self.interval2timestamp(entries[i])) for i,h in enumerate(hours) if h == 0]
+        current_consumption = [sum(self.intervals[i:i+intervals_per_hour]) for i in entries]
+        avg_consumption = [sum([self.consumption_per_interval[self.cmp_interval(j)] for j in range(i,i+intervals_per_hour)]) for i in entries]
         plot_plotly(current_consumption, avg_consumption, x, day_starts)
 
     def plot_current_and_historic_consumption(self):
