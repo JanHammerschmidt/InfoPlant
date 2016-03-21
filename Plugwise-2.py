@@ -697,6 +697,8 @@ if cfg_plot_data:
 try:
     main.run()
 except Exception as e:
+    if 'PYCHARM' in os.environ:
+        raise
     print("%s: %s" % (type(e).__name__, str(e)))
     with open('crashlog.log', 'a') as f:
         f.write("%s: %s\n" % (datetime.now().isoformat(),  str(e)))
