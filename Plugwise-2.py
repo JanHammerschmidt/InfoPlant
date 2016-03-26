@@ -7,6 +7,7 @@ print("load dependencies")
 from serial.serialutil import SerialException
 from plugwise.api import *
 from datetime import datetime, timedelta
+from subprocess import Popen
 from EnergyData import EnergyData, init_matplotlib
 from plotly_plot import init_plotly
 import time, calendar, os, logging, json, traceback
@@ -574,6 +575,8 @@ class PWControl(object):
         energy_data.save_cache()
         if cfg_plot_data:
             energy_data.plot_current_and_historic_consumption()
+        if cfg_plot_plotly:
+            energy_data.plot_plotly()
         # start_interval_updated = True
 
         offline = []
@@ -586,6 +589,9 @@ class PWControl(object):
             error("PWControl.run(): Communication error in enable_joining")
 
         print("starting logging")
+        if cfg_plot_plotly:
+            print("Open Safari")
+            Popen(['open', '-a','Safari'])
         while 1:
             #this call can take over ten seconds!
             self.test_offline()
