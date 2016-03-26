@@ -4,6 +4,7 @@ from sys import stdout
 from os import path
 from smooth import smooth
 from plotly_plot import plot_plotly
+from misc import ProgressBar
 import os, codecs, json
 import pandas as pd, numpy as np
 timedelta = pd.offsets.timedelta
@@ -17,28 +18,6 @@ def init_matplotlib():
     matplotlib.style.use('ggplot')
     print(" done")
 
-
-class ProgressBar:
-    def __init__(self, name, nitems):
-        self.name = name
-        self.c = 0
-        self.nitems = nitems
-        if nitems > 0:
-            self.out()
-        else:
-            self.nitems = 1
-            self.next()
-
-    def out(self):
-        stdout.write('\r')
-        stdout.write("%s [%-20s] %d%%" % (self.name, '='*(self.c*20/self.nitems), self.c * 100/self.nitems))
-        stdout.flush()
-
-    def next(self):
-        self.c += 1
-        self.out()
-        if (self.c >= self.nitems):
-            stdout.write('\n')
 
 class CircleData(object):
     def __init__(self, idx, fast_interval, slow_interval):
