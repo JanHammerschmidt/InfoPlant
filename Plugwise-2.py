@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from subprocess import Popen
 from EnergyData import EnergyData, init_matplotlib
 from plotly_plot import init_plotly
+from misc import linear_interp_color, linear_interp
 import time, calendar, os, logging, json, traceback
 import pandas as pd
 import numpy as np
@@ -101,7 +102,7 @@ def get_timestamp():
     return get_now().isoformat()
 
 class Limiter(object):
-    def __init__(self, min_deviation = 0.2, min_timediff = timedelta(hours=1), first_update = timedelta(minutes=1), init_value = -999):
+    def __init__(self, min_deviation = 0.2, min_timediff = timedelta(hours=1), first_update = timedelta(seconds=1), init_value = -999):
         self.last_update = get_now() - min_timediff + first_update
         self.value = init_value
         self.min_deviation = min_deviation
@@ -135,6 +136,7 @@ class PWControl(object):
     def __init__(self, first_run = False, log_interval = 10, gather_historic_data = False):
 
         self.twig_limiter = Limiter()
+        self.led_limiter = Limiter(0.05, timedelta(seconds=20))
         self.curfile = open(debug_path+'pwpower.log', 'w')
         self.statusfname = debug_path+'pw-status.json'
         self.statusdumpfname = debug_path+'pw-statusdump.json'
@@ -567,6 +569,21 @@ class PWControl(object):
         #a later call to self.test_offline will initialize the new circle(s)
         #self.test_offline()
         
+    def plant_map2color(self, v):
+        green = (0,255,0)
+        red = (255,0,0)
+        yellow = (255,220,0)
+        v = np.clip(v,-1,1)
+        if v > 0:
+            color = linear_interp_color(yellow, red, v)
+        else:
+            color = linear_interp_color(yellow, green, -v)
+        return tuple([int(round(i)) for i in color]) # round to integer
+
+    def plant_set_color(self, c=(0,0,0), t=1000):
+        if cfg_print_data:
+            print("led update", c, t)
+        plant.ledShiftRangeFromCurrent(1,17,c[0],c[1],c[2],t)
     def run(self):
 
         now = get_now()
@@ -654,7 +671,11 @@ class PWControl(object):
             else:
                 lower = max(comparison_consumption - max(energy_data.std_intervals,1), 0)
                 leds = max(diff / (comparison_consumption - lower), -1)
-            plant_plot.led.append((ts,leds))
+            if self.led_limiter.update(leds):
+                if cfg_plot_plant:
+                    plant_plot.led.append((ts,leds))
+                if cfg_plant:
+                    self.plant_set_color(self.plant_map2color(leds), 5000)
 
             if cfg_print_data:
                 print("cur: %.2f/%.2f %.2f/%.2f %.2f/%.2f %s" % (twig, leds, energy_data.current_consumption(), energy_data.comparison_consumption(),
@@ -670,7 +691,6 @@ class PWControl(object):
                     # print("plotly: %s" % get_now().isoformat())
                     energy_data.plot_plotly()
                 if cfg_plot_plant:
-
                     plant_plot.plot()
 
             new_offline = [(i+1,c.short_mac()) for i,c in enumerate(self.circles) if not c.online]
