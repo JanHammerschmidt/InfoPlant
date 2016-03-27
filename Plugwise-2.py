@@ -18,14 +18,21 @@ cfg_plot_data = False
 cfg_print_data = False
 cfg_plot_plotly = True
 cfg_plot_plant = False
+cfg_plant = False
 
 if cfg_plot_plotly:
     init_plotly()
+
 if cfg_plot_data or cfg_plot_plant:
     init_matplotlib()
     global plt
     import matplotlib.pyplot as plt
 
+if cfg_plant:
+    global plant
+    sys.path.append('/home/plant/plantlight/plantlight/rsb/remotePlantAPI')
+    from remotePlantAPI import PlantAPI
+    plant = PlantAPI('/dev/ttyACM0', 9600)
 
 class PlantPlot(object):
     def __init__(self):
