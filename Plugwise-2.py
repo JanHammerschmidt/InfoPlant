@@ -1,6 +1,6 @@
 import sys
+from time import sleep
 if len(sys.argv) > 1:
-    from time import sleep
     print("starting in 10 seconds...")
     sleep(10)
 print("load dependencies")
@@ -8,6 +8,7 @@ from serial.serialutil import SerialException
 from plugwise.api import *
 from datetime import datetime, timedelta
 from subprocess import Popen
+from thread import start_new_thread
 from EnergyData import EnergyData, init_matplotlib
 from plotly_plot import init_plotly
 from misc import linear_interp_color, linear_interp
@@ -584,6 +585,22 @@ class PWControl(object):
         if cfg_print_data:
             print("led update", c, t)
         plant.ledShiftRangeFromCurrent(1,17,c[0],c[1],c[2],t)
+    def plant_set_twigs(self, v,t=8):
+        v = np.clip(v,-1,1)
+        twigs = [(3,(0,4,8)),(1,(2,5,8)),(4,(0,4,7)),(2,(0,3,6))]
+        for i,(low,mid,high) in twigs:
+            if v > 0:
+                d = linear_interp(mid,high,v)
+            elif v == -1:
+                d = 0
+            else:
+                d = linear_interp(mid,low,-v)
+            d = int(round(d))
+            if cfg_print_data:
+                print("tugDegree(%i,%i)" % (i, d))
+            # plant.tugDegree(i, d)
+            sleep(t)
+
     def run(self):
 
         now = get_now()
@@ -661,7 +678,10 @@ class PWControl(object):
             if self.twig_limiter.update(twig):
                 if cfg_print_data:
                     print("!!TWIG UPDATE!!", twig)
-                plant_plot.twig_update.append((ts,twig))
+                if cfg_plot_plant:
+                    plant_plot.twig_update.append((ts,twig))
+                if cfg_plant:
+                    start_new_thread(self.plant_set_twigs, (twig,))
 
             current_consumption = energy_data.current_consumption()
             comparison_consumption = max(energy_data.comparison_consumption(), 1) # everything below 1W should be "good" by default ..
