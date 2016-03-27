@@ -153,10 +153,13 @@ class PWControl(object):
         self.circles = []
         self.bymac = dict()
         print("initialize stick")
+        stick = 1
         try:
             self.device = Stick(port, timeout=1)
         except (OSError, SerialException):
+            stick = 2
             self.device = Stick(port2, timeout=1)
+        print("  found stick for set %i" % stick)
 
         def add_circle(i, cfg = None):
             item = sconf['static'][i]
@@ -189,10 +192,11 @@ class PWControl(object):
                 print("!! failed to add circle %i (%s)" % (i+1,c.short_mac()))
             return cfg
 
-        cfg = add_circle(0)
-        if not self.circles[0].online:
-            raise RuntimeError("Could not connect to circle+")
-        for i in range(1,len(sconf['static'])):
+        # cfg = add_circle(0)
+        # if not self.circles[0].online:
+        #     raise RuntimeError("Could not connect to circle+")
+        cfg = stick-1
+        for i in range(0,len(sconf['static'])): #range(1..
             add_circle(i, cfg)
         self.cfg = cfg
 
