@@ -36,6 +36,11 @@ if cfg_plant:
     from remotePlantAPI import PlantAPI
     plant = PlantAPI('/dev/ttyACM0', 9600)
 
+    from math import sin,cos
+    for i in range(1,18):
+        plant.ledPulseSingle(i,abs(sin(i))*255,abs(cos(i))*255,abs(sin(i*2))*255,50+abs(cos(i*2))*150)
+
+
 class PlantPlot(object):
     def __init__(self):
         self.twig = []
@@ -610,6 +615,8 @@ class PWControl(object):
 
         self.sync_time()
         self.dump_status()
+        if cfg_plant:
+            self.plant_set_color() # reset leds
         print("get past interval data")
         self.log_recordings()
 
