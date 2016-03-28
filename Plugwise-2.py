@@ -16,11 +16,18 @@ import time, calendar, os, logging, json, traceback
 import pandas as pd
 import numpy as np
 
-cfg_plot_data = False
-cfg_print_data = False
-cfg_plot_plotly = True
-cfg_plot_plant = False
-cfg_plant = False
+
+json.encoder.FLOAT_REPR = lambda f: ("%.2f" % f)
+
+# cfg = json.load(open("config/pw-hostconfig.%sjson" % ('win.' if os.name=='nt' else '')))
+cfg = json.load(open("hostconfig/pw-hostconfig.json"))
+
+enabled = ('True', 'true', '1', 1)
+cfg_plot_data = cfg['plot_data'] in enabled
+cfg_print_data = cfg['print_data'] in enabled
+cfg_plot_plotly = cfg['plot_plotly'] in enabled
+cfg_plot_plant = cfg['plot_plant'] in enabled
+cfg_plant = cfg['plant'] in enabled
 
 if cfg_plot_plotly:
     init_plotly()
@@ -98,7 +105,6 @@ if False:
             energy_data.plot_current_and_historic_consumption_2(i, True)
     exit()
 
-json.encoder.FLOAT_REPR = lambda f: ("%.2f" % f)
 
 def get_now():
     #return datetime.now()
@@ -120,9 +126,6 @@ class Limiter(object):
             self.last_update = get_now()
             return True
         return False
-
-
-cfg = json.load(open("config/pw-hostconfig.%sjson" % ('win.' if os.name=='nt' else '')))
 
 port = cfg['serial']
 port2 = cfg['serial2'] if 'serial2' in cfg else port
