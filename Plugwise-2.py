@@ -69,33 +69,31 @@ class Schedule(object):
         return sorted(times, key=lambda x:x.remaining_time(t))[0]
 
     def update(self, t):
-        self.lock.acquire()
-        if self.next.test(t):
-            prev_enabled = self.enabled
-            if self.next == self.bed_from:
-                self.enabled = True
-                self.touch = (True,False)
-            elif self.next == self.bed_to:
-                self.enabled = False
-                self.touch = (False,False)
-            elif self.next == self.wakeup_from:
-                self.enabled = False
-                self.touch = (True,True)
-            elif self.next == self.wakeup_to:
-                self.enabled = True
-                self.touch = (False,False)
+        with self.lock:
+            if self.next.test(t):
+                prev_enabled = self.enabled
+                if self.next == self.bed_from:
+                    self.enabled = True
+                    self.touch = (True,False)
+                elif self.next == self.bed_to:
+                    self.enabled = False
+                    self.touch = (False,False)
+                elif self.next == self.wakeup_from:
+                    self.enabled = False
+                    self.touch = (True,True)
+                elif self.next == self.wakeup_to:
+                    self.enabled = True
+                    self.touch = (False,False)
 
-            self.next = self.next_trigger(t)
-            if prev_enabled != self.enabled:
-                self.callback(self.enabled)
-        self.lock.release()
+                self.next = self.next_trigger(t)
+                if prev_enabled != self.enabled:
+                    self.callback(self.enabled)
 
     def handle_touch(self):
-        self.lock.acquire()
-        if self.touch[0] and self.touch[1] != self.enabled:
-            self.enabled = not self.enabled
-            self.callback(self.enabled)
-        self.lock.release()
+        with self.lock:
+            if self.touch[0] and self.touch[1] != self.enabled:
+                self.enabled = not self.enabled
+                self.callback(self.enabled)
 
 if False:
     def enabled_callback(enabled):
