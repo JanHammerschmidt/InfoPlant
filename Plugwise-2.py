@@ -577,7 +577,10 @@ class PWControl(object):
         self.device.unjoined.clear()
         #a later call to self.test_offline will initialize the new circle(s)
         #self.test_offline()
-        
+
+    def plant_touch_callback(self):
+        print("plant touch callback")
+
     def plant_map2color(self, v):
         green = (0,255,0)
         red = (255,0,0)
@@ -647,6 +650,9 @@ class PWControl(object):
         if cfg_plot_plotly:
             print("Open Safari")
             Popen(['open', '-a','Safari'])
+        if cfg_plant:
+            plant.touch_callback = self.plant_touch_callback
+            plant.debug_prints = False
         while 1:
             #this call can take over ten seconds!
             self.test_offline()
