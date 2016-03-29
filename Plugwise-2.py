@@ -19,8 +19,10 @@ import numpy as np
 
 json.encoder.FLOAT_REPR = lambda f: ("%.2f" % f)
 
+sconf = json.load(open('config/pw-conf.json'))
+
 # cfg = json.load(open("config/pw-hostconfig.%sjson" % ('win.' if os.name=='nt' else '')))
-cfg = json.load(open("hostconfig/pw-hostconfig.json"))
+cfg = json.load(open(sconf['hostconfig']))
 
 enabled = ('True', 'true', '1', 1)
 cfg_plot_data = cfg['plot_data'] in enabled
@@ -152,7 +154,6 @@ class PWControl(object):
         self.session_fname = log_path+'session.json'
         self.logfiles = dict()
 
-        sconf = json.load(open('config/pw-conf.json'))
         #set log settings
         if sconf.has_key('log_comm'):
             log_comm(sconf['log_comm'].strip().lower() == 'yes')
