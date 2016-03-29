@@ -109,8 +109,8 @@ if False:
 
 
 def get_now():
-    #return datetime.now()
-    return datetime.utcnow()-timedelta(seconds=time.timezone)
+    return datetime.now()
+    #return datetime.utcnow()-timedelta(seconds=time.timezone)
 
 def get_timestamp():
     return get_now().isoformat()
