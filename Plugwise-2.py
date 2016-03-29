@@ -658,7 +658,7 @@ class PWControl(object):
         #self.test_offline()
 
     def plant_touch_callback(self):
-        print("plant touch callback")
+        schedule.handle_touch()
 
     def plant_map2color(self, v):
         green = (0,255,0)
@@ -690,6 +690,13 @@ class PWControl(object):
                 print("tugDegree(%i,%i)" % (i, d))
             # plant.tugDegree(i, d)
             sleep(t)
+
+    def schedule_callback(self, enabled):
+        if enabled:
+            self.plant_set_color((10,10),500)
+        else:
+            self.plant_set_color()
+            start_new_thread(self.plant_set_twigs, (-1,))
 
     def run(self):
 
@@ -755,6 +762,8 @@ class PWControl(object):
             day = now.day
             hour = now.hour
             minute = now.minute
+
+            schedule.update(now)
                 
             if minute != prev_minute:
                 self.log_recordings()
@@ -776,7 +785,10 @@ class PWControl(object):
                 if cfg_plot_plant:
                     plant_plot.twig_update.append((ts,twig))
                 if cfg_plant:
-                    start_new_thread(self.plant_set_twigs, (twig,))
+                    with schedule.lock:
+                        if schedule.enabled:
+                            start_new_thread(self.plant_set_twigs, (twig,))
+
 
             current_consumption = energy_data.current_consumption()
             comparison_consumption = max(energy_data.comparison_consumption(), 1) # everything below 1W should be "good" by default ..
@@ -790,7 +802,9 @@ class PWControl(object):
                 if cfg_plot_plant:
                     plant_plot.led.append((ts,leds))
                 if cfg_plant:
-                    self.plant_set_color(self.plant_map2color(leds), 5000)
+                    with schedule.lock:
+                        if schedule.enabled:
+                            self.plant_set_color(self.plant_map2color(leds), 5000)
 
             if cfg_print_data:
                 print("cur: %.2f/%.2f %.2f/%.2f %.2f/%.2f %s" % (twig, leds, energy_data.current_consumption(), energy_data.comparison_consumption(),
@@ -841,6 +855,11 @@ args.insert(0, sys.executable)
 main=PWControl(gather_historic_data=False)
 if main.gather_historic_data:
     exit()
+
+if cfg_plant:
+    global schedule
+    schedule = Schedule(get_now(), main.schedule_callback)
+
 energy_data = EnergyData(main.bymac, log_path, slow_log_path, energy_log_path, main.session_start, main.first_run)
 # energy_data.update_day_start(get_now())
 if cfg_plot_data:
