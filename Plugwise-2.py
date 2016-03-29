@@ -16,6 +16,9 @@ import time, calendar, os, logging, json, traceback
 import pandas as pd
 import numpy as np
 
+def get_now():
+    return datetime.now()
+    #return datetime.utcnow()-timedelta(seconds=time.timezone)
 
 json.encoder.FLOAT_REPR = lambda f: ("%.2f" % f)
 
@@ -38,6 +41,75 @@ if cfg_plot_data or cfg_plot_plant:
     init_matplotlib()
     global plt
     import matplotlib.pyplot as plt
+
+
+class Schedule(object):
+    def __init__(self, t, callback):
+        config = json.load(open(sconf['timeconfig']))
+        self.bed_from = TimeTrigger(t, config['bed_from'], 'bed_from')
+        self.bed_to = TimeTrigger(t, config['bed_to'], 'bed_to')
+        self.wakeup_from = TimeTrigger(t, config['wakeup_from'], 'wakeup_from')
+        self.wakeup_to = TimeTrigger(t, config['wakeup_to'], 'wakeup_to')
+
+        next = self.next_trigger(t)
+        self.enabled = next != self.wakeup_from # light / tugging enabled?
+        self.touch = (False,False) # touch is disabled by default
+        if next == self.bed_to:
+            self.touch = (True,False) #enabled to switch off
+        elif next == self.wakeup_to:
+            self.touch = (True,True) # enabled to switch on
+
+        from threading import Lock
+        self.lock = Lock()
+        self.callback = callback
+        self.next = next
+
+    def next_trigger(self, t):
+        times = [self.bed_from, self.bed_to, self.wakeup_from, self.wakeup_to]
+        return sorted(times, key=lambda x:x.remaining_time(t))[0]
+
+    def update(self, t):
+        self.lock.acquire()
+        if self.next.test(t):
+            prev_enabled = self.enabled
+            if self.next == self.bed_from:
+                self.enabled = True
+                self.touch = (True,False)
+            elif self.next == self.bed_to:
+                self.enabled = False
+                self.touch = (False,False)
+            elif self.next == self.wakeup_from:
+                self.enabled = False
+                self.touch = (True,True)
+            elif self.next == self.wakeup_to:
+                self.enabled = True
+                self.touch = (False,False)
+
+            self.next = self.next_trigger(t)
+            if prev_enabled != self.enabled:
+                self.callback(self.enabled)
+        self.lock.release()
+
+    def handle_touch(self):
+        self.lock.acquire()
+        if self.touch[0] and self.touch[1] != self.enabled:
+            self.enabled = not self.enabled
+            self.callback(self.enabled)
+        self.lock.release()
+
+if False:
+    def enabled_callback(enabled):
+        print("enabled", enabled)
+
+    schedule = Schedule(get_now(), enabled_callback)
+    def test():
+        while True:
+            sleep(1)
+            schedule.update(get_now())
+
+    start_new_thread(test, ())
+
+    exit()
 
 if cfg_plant:
     global plant
@@ -108,10 +180,6 @@ if False:
             energy_data.plot_current_and_historic_consumption_2(i, True)
     exit()
 
-
-def get_now():
-    return datetime.now()
-    #return datetime.utcnow()-timedelta(seconds=time.timezone)
 
 def get_timestamp():
     return get_now().isoformat()

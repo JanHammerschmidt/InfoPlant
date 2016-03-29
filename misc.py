@@ -24,7 +24,7 @@ class ProgressBar(object):
 
 
 class TimeTrigger(object):
-    def __init__(self, t, trigger): # t: "now"-timestamp, trigger: string of time (e.g. "10:00")
+    def __init__(self, t, trigger, name = None): # t: "now"-timestamp, trigger: string of time (e.g. "10:00")
         from dateutil.parser import parse
         next = parse(trigger) # next trigger
 
@@ -33,12 +33,16 @@ class TimeTrigger(object):
         assert((next-t).total_seconds() > 0)
 
         self.next_t = next
+        self.name = name
 
     def test(self, t): # t: "now"-timestamp
         if (t - self.next_t).total_seconds() > 0: # trigger!
             self.next_t = self.next_t.replace(day = self.next_t.day+1) # next trigger is tomorrow
             return True
         return False
+
+    def remaining_time(self, t): # returns remaining seconds
+        return (self.next_t - t).total_seconds()
 
 def linear_interp(v1,v2,v):
     return v1 * (1-v) + v2 * v
