@@ -11,7 +11,7 @@ from subprocess import Popen
 from thread import start_new_thread
 from EnergyData import EnergyData, init_matplotlib
 from plotly_plot import init_plotly
-from misc import linear_interp_color, linear_interp
+from misc import linear_interp_color, linear_interp, TimeTrigger
 import time, calendar, os, logging, json, traceback
 import pandas as pd
 import numpy as np
@@ -73,6 +73,7 @@ class PlantPlot(object):
 
 plant_plot = PlantPlot()
 
+
 if False:
     circle_from_mac =  {'78DB3F':1, '8FB7BB':2, '8FB86B':3, '8FD194':4,
                      '8FD25D':5, '8FD2DE':6, '8FD33A':7, '8FD358':8, '8FD472':9}
@@ -114,6 +115,17 @@ def get_now():
 
 def get_timestamp():
     return get_now().isoformat()
+
+if False:
+    t = get_now()
+    trig = TimeTrigger(t, '14:26')
+    print("trigger start")
+    while True:
+        t = get_now()
+        if trig.test(t):
+            print('trigger!')
+        sleep(1)
+    exit()
 
 class Limiter(object):
     def __init__(self, min_deviation = 0.2, min_timediff = timedelta(hours=1), first_update = timedelta(seconds=1), init_value = -999):
