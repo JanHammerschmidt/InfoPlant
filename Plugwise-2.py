@@ -84,7 +84,7 @@ class Schedule(object):
                     self.touch = (False,False)
                 elif self.next == self.wakeup_from:
                     self.enabled = False
-                    self.touch = (True,True)
+                    self.touch = (True,None)
                 elif self.next == self.wakeup_to:
                     self.enabled = True
                     self.touch = (False,False)
@@ -97,9 +97,11 @@ class Schedule(object):
 
     def handle_touch(self):
         with self.lock:
-            if self.touch[0] and self.touch[1] != self.enabled:
+            if self.touch[0] and (self.touch[1] == None or self.touch[1] != self.enabled):
                 self.enabled = not self.enabled
                 self.callback(self.enabled)
+                return True
+            return False
 
 if False:
     def enabled_callback(enabled):
