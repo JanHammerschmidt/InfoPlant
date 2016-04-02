@@ -20,6 +20,8 @@ def get_now():
     return datetime.now()
     #return datetime.utcnow()-timedelta(seconds=time.timezone)
 
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
+
 json.encoder.FLOAT_REPR = lambda f: ("%.2f" % f)
 
 sconf = json.load(open('config/pw-conf.json'))
@@ -845,10 +847,11 @@ class PWControl(object):
 
 init_logger(debug_path+"pw-logger.log", "pw-logger")
 
-executable = sys.executable
-args = sys.argv[:]
-args[0] = '"%s"' % args[0]
-args.insert(0, sys.executable)
+# executable = sys.executable
+# args = sys.argv[:]
+# args[0] = '"%s"' % args[0]
+# args.insert(0, sys.executable)
+
 
 # print(get_timestamp())
 # energy_data = EnergyData(log_path, slow_log_path, energy_log_path, pd.Timestamp('2016-01-04T15:51:40')) # only temporary!
@@ -875,5 +878,5 @@ except Exception as e:
         f.write("%s: %s\n" % (datetime.now().isoformat(),  str(e)))
         f.write(traceback.format_exc())
         f.write('\n\n')
-    os.execvp(executable, args)
+    os.execl(sys.executable, "python", os.path.realpath(__file__))
     raise
