@@ -469,7 +469,7 @@ class PWControl(object):
             except (TimeoutException, SerialException) as reason:
                 #for continuous monitoring just retry
                 error("Error in ten_seconds(): %s" % (reason,))
-                assert(c.online == False)
+                # assert(c.online == False)
                 write_offline()
 
             f.flush()
