@@ -711,7 +711,7 @@ class PWControl(object):
 
     def schedule_callback(self, enabled):
         if enabled:
-            self.plant_set_color((10,10),500)
+            self.plant_set_color((10,10,10),500)
         else:
             self.plant_set_color()
             start_new_thread(self.plant_set_twigs, (-1,))
