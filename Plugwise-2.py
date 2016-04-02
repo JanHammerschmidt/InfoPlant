@@ -117,16 +117,20 @@ if False:
 
     exit()
 
+def plant_lights():
+    from math import sin,cos
+    for i in range(1,18):
+        plant.ledPulseSingle(i,abs(sin(i))*255,abs(cos(i))*255,abs(sin(i*2))*255,50+abs(cos(i*2))*150)
+
+def plant_error():
+    plant.ledPulseRange(1,17,100,0,0,30)
+
 if cfg_plant:
     global plant
     sys.path.append('/home/plant/plantlight/plantlight/rsb/remotePlantAPI')
     from remotePlantAPI import PlantAPI
     plant = PlantAPI('/dev/ttyACM0', 9600)
-
-    from math import sin,cos
-    for i in range(1,18):
-        plant.ledPulseSingle(i,abs(sin(i))*255,abs(cos(i))*255,abs(sin(i*2))*255,50+abs(cos(i*2))*150)
-
+    plant_lights()
 
 class PlantPlot(object):
     def __init__(self):
@@ -865,18 +869,22 @@ init_logger(debug_path+"pw-logger.log", "pw-logger")
 
 # print(get_timestamp())
 # energy_data = EnergyData(log_path, slow_log_path, energy_log_path, pd.Timestamp('2016-01-04T15:51:40')) # only temporary!
-main=PWControl(gather_historic_data=False)
-if main.gather_historic_data:
-    exit()
+try:
+    main=PWControl(gather_historic_data=False)
+    if main.gather_historic_data:
+        exit()
 
-if cfg_plant:
-    global schedule
-    schedule = Schedule(get_now(), main.schedule_callback)
+    if cfg_plant:
+        schedule = Schedule(get_now(), main.schedule_callback)
 
-energy_data = EnergyData(main.bymac, log_path, slow_log_path, energy_log_path, main.session_start, main.first_run)
-# energy_data.update_day_start(get_now())
-if cfg_plot_data:
-    energy_data.plot_current_and_historic_consumption()
+    energy_data = EnergyData(main.bymac, log_path, slow_log_path, energy_log_path, main.session_start, main.first_run)
+    # energy_data.update_day_start(get_now())
+    if cfg_plot_data:
+        energy_data.plot_current_and_historic_consumption()
+except:
+    if cfg_plant:
+        plant_error()
+    raise
 
 try:
     main.run()
