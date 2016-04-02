@@ -1,4 +1,5 @@
 from sys import stdout
+from datetime import timedelta
 
 class ProgressBar(object):
     def __init__(self, name, nitems):
@@ -29,7 +30,7 @@ class TimeTrigger(object):
         next = parse(trigger) # next trigger
 
         if (next - t).total_seconds() <= 0: # already was this day ..
-            next = next.replace(day = next.day+1)
+            next = next + timedelta(days=1)
         assert((next-t).total_seconds() > 0)
 
         self.next_t = next
@@ -37,7 +38,7 @@ class TimeTrigger(object):
 
     def test(self, t): # t: "now"-timestamp
         if (t - self.next_t).total_seconds() > 0: # trigger!
-            self.next_t = self.next_t.replace(day = self.next_t.day+1) # next trigger is tomorrow
+            self.next_t = self.next_t + timedelta(days=1) # next trigger is tomorrow
             return True
         return False
 
