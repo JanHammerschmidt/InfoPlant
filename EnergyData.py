@@ -9,6 +9,8 @@ import os, codecs, json
 import pandas as pd, numpy as np
 timedelta = pd.offsets.timedelta
 
+cfg_circle_intervals = False
+
 
 def init_matplotlib():
     stdout.write("init matplotlib..")
@@ -158,8 +160,9 @@ class EnergyData(object):
                 p.next()
         else:
             self.intervals = [0] * n_intervals
-            for c in self.circles.values():
-                c.intervals = self.intervals[:]
+            if cfg_circle_intervals:
+                for c in self.circles.values():
+                    c.intervals = self.intervals[:]
 
             if (len(self.intervals) > 0):
                 p = ProgressBar('analyzing historic consumption', len(self.intervals))
@@ -188,8 +191,9 @@ class EnergyData(object):
     def resize_intervals(self, n):
         if n > len(self.intervals):
             self.intervals += [0] * (n - len(self.intervals))
-            for c in self.circles.values():
-                c.intervals += [0] * (n - len(c.intervals))
+            if cfg_circle_intervals:
+                for c in self.circles.values():
+                    c.intervals += [0] * (n - len(c.intervals))
 
     def update_interval(self, i):
         if i >= 0:
@@ -328,13 +332,14 @@ class EnergyData(object):
         plt.show() if wait else plt.pause(0.001)
 
     def accumulated_consumption(self, begin, end, i): # for an interval
-        t = []
-        for c in self.circles.values():
-            cc = c.accumulated_consumption(begin, end)
-            c.intervals[i] = cc
-            t.append(cc)
-        return sum(t) # TODO: this is not really necessary: exchange for the line below
-        # return sum(c.accumulated_consumption(begin, end) for c in self.circles.values())
+        if cfg_circle_intervals:
+            t = []
+            for c in self.circles.values():
+                cc = c.accumulated_consumption(begin, end)
+                c.intervals[i] = cc
+                t.append(cc)
+            return sum(t) # TODO: this is not really necessary: exchange for the line below
+        return sum(c.accumulated_consumption(begin, end) for c in self.circles.values())
 
     def calc_avg_consumption_per_interval(self):
         consumptions = [[] for _ in range(self.intervals_per_day)]
@@ -351,21 +356,25 @@ class EnergyData(object):
         try:
             cache = json.load(open(self.cache_fname))
             intervals = cache['intervals']
-            circle_intervals = cache['circle_intervals']
+            if cfg_circle_intervals:
+                circle_intervals = cache['circle_intervals'] if 'circle_intervals' in cache else None
             if pd.Timestamp(cache['intervals_start']) != self.intervals_start or cache['intervals_offset'] != self.intervals_offset:
                 print("cache doesn't seem to match current config! => discarding..")
+                return False
         except Exception:
             return False
         self.intervals = intervals
-        for idx,intv in circle_intervals.items():
-            self.circle(int(idx)).intervals = intv
+        if cfg_circle_intervals:
+            for idx,intv in circle_intervals.items():
+                self.circle(int(idx)).intervals = intv
         print("successfully loaded cache")
         return True
 
     def save_cache(self):
         cache = {'intervals_start': self.intervals_start.isoformat(), 'intervals_offset': self.intervals_offset}
         cache['intervals'] = self.intervals
-        cache['circle_intervals'] = {c.idx: c.intervals for c in self.circles.values()}
+        if cfg_circle_intervals:
+            cache['circle_intervals'] = {c.idx: c.intervals for c in self.circles.values()}
         with open(self.cache_fname, 'w') as f:
             json.dump(cache, f, default=lambda o: o.__dict__)
 
