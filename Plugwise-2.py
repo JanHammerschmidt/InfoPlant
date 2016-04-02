@@ -240,7 +240,7 @@ class PWControl(object):
             start_new_thread(self.plant_set_twigs, (-1,))
 
         self.twig_limiter = Limiter()
-        self.led_limiter = Limiter(0.05, timedelta(seconds=20))
+        self.led_limiter = Limiter(0.05, timedelta(milliseconds=500))
         if cfg_print_data:
             self.print_data_limiter = Limiter(0, timedelta(seconds=20))
         self.curfile = open(debug_path+'pwpower.log', 'w')
@@ -829,7 +829,7 @@ class PWControl(object):
                 if cfg_plant:
                     with schedule.lock:
                         if schedule.enabled:
-                            self.plant_set_color(self.plant_map2color(leds), 5000)
+                            self.plant_set_color(self.plant_map2color(leds), 300)
 
             if cfg_print_data and self.print_data_limiter.update(now.second):
                 print("cur: %.2f/%.2f %.2f/%.2f %.2f/%.2f %s" % (twig, leds, energy_data.current_consumption(), energy_data.comparison_consumption(),
