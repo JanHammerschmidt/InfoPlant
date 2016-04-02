@@ -236,6 +236,9 @@ class PWControl(object):
 
     def __init__(self, first_run = False, log_interval = 10, gather_historic_data = False):
 
+        if cfg_plant:
+            start_new_thread(self.plant_set_twigs, (-1,))
+
         self.twig_limiter = Limiter()
         self.led_limiter = Limiter(0.05, timedelta(seconds=20))
         if cfg_print_data:
@@ -689,20 +692,21 @@ class PWControl(object):
         if cfg_print_data:
             print("led update", c, t)
         plant.ledShiftRangeFromCurrent(1,17,c[0],c[1],c[2],t)
+
     def plant_set_twigs(self, v,t=8):
         v = np.clip(v,-1,1)
-        twigs = [(3,(0,4,8)),(1,(2,5,8)),(4,(0,4,7)),(2,(0,3,6))]
-        for i,(low,mid,high) in twigs:
+        twigs = [(3,(6,8,12,16)),(1,(6,8,11,14)),(4,(5,7,10,14)),(2,(7,9,12,15))]
+        for i,(stop,low,mid,high) in twigs:
             if v > 0:
                 d = linear_interp(mid,high,v)
             elif v == -1:
-                d = 0
+                d = stop
             else:
                 d = linear_interp(mid,low,-v)
             d = int(round(d))
             if cfg_print_data:
                 print("tugDegree(%i,%i)" % (i, d))
-            # plant.tugDegree(i, d)
+            plant.tugDegree(i, d)
             sleep(t)
 
     def schedule_callback(self, enabled):
@@ -810,7 +814,6 @@ class PWControl(object):
                     with schedule.lock:
                         if schedule.enabled:
                             start_new_thread(self.plant_set_twigs, (twig,))
-
 
             current_consumption = energy_data.current_consumption()
             comparison_consumption = max(energy_data.comparison_consumption(), 1) # everything below 1W should be "good" by default ..
