@@ -65,6 +65,8 @@ class Schedule(object):
         self.lock = Lock()
         self.callback = callback
         self.next = next
+        if cfg_print_data:
+            print("schedule", self.enabled, self.touch)
 
     def next_trigger(self, t):
         times = [self.bed_from, self.bed_to, self.wakeup_from, self.wakeup_to]
@@ -88,6 +90,8 @@ class Schedule(object):
                     self.touch = (False,False)
 
                 self.next = self.next_trigger(t)
+                if cfg_print_data:
+                    print("schedule", self.enabled, self.touch, "next: ", self.next.name)
                 if prev_enabled != self.enabled:
                     self.callback(self.enabled)
 
@@ -228,6 +232,8 @@ class PWControl(object):
 
         self.twig_limiter = Limiter()
         self.led_limiter = Limiter(0.05, timedelta(seconds=20))
+        if cfg_print_data:
+            self.print_data_limiter = Limiter(0, timedelta(seconds=20))
         self.curfile = open(debug_path+'pwpower.log', 'w')
         self.statusfname = debug_path+'pw-status.json'
         self.statusdumpfname = debug_path+'pw-statusdump.json'
@@ -782,7 +788,7 @@ class PWControl(object):
             twig = np.clip(diff, -energy_data.std, energy_data.std) / energy_data.std
             plant_plot.twig.append((ts,twig)) # positive values mean: more consumption!
             if self.twig_limiter.update(twig):
-                if cfg_print_data:
+                if cfg_print_data and (not cfg_plant or schedule.enabled):
                     print("!!TWIG UPDATE!!", twig)
                 if cfg_plot_plant:
                     plant_plot.twig_update.append((ts,twig))
@@ -808,9 +814,11 @@ class PWControl(object):
                         if schedule.enabled:
                             self.plant_set_color(self.plant_map2color(leds), 5000)
 
-            if cfg_print_data:
+            if cfg_print_data and self.print_data_limiter.update(now.second):
                 print("cur: %.2f/%.2f %.2f/%.2f %.2f/%.2f %s" % (twig, leds, energy_data.current_consumption(), energy_data.comparison_consumption(),
                       energy_data.current_accumulated_consumption_24h(), energy_data.comparison_avg_accumulated_consumption_24h(now), now.isoformat()))
+
+            sys.stdout.flush()
 
             if minute != prev_minute:
                 energy_data.calc_avg_consumption_per_interval()
