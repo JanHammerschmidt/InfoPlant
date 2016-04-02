@@ -675,7 +675,13 @@ class PWControl(object):
         #self.test_offline()
 
     def plant_touch_callback(self):
-        schedule.handle_touch()
+        ret = schedule.handle_touch()
+        if schedule.enabled and not ret:
+            plant_lights()
+            self.led_limiter.value = -999
+            self.led_limiter.last_update = get_now() + timedelta(seconds=3)
+        if cfg_print_data and not ret:
+            print("touch registered, but ignored due to schedule")
 
     def plant_map2color(self, v):
         green = (0,255,0)
