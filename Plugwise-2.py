@@ -715,6 +715,14 @@ class PWControl(object):
     def run(self):
 
         now = get_now()
+
+        if (now - self.session_start).total_seconds() <= 0:
+            print("error: current time is before session start! (%s)" % now.isoformat())
+            if cfg_plant:
+                plant_error()
+            sleep(2*60)
+            raise RuntimeError("error: current time is before session start! (%s)" % now.isoformat())
+
         day = now.day
         hour = now.hour
         minute = now.minute
