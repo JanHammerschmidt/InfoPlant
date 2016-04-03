@@ -5,7 +5,7 @@ from os import path
 from smooth import smooth
 from plotly_plot import plot_plotly
 from misc import ProgressBar
-import os, codecs, json
+import os, codecs, json, dateutil
 import pandas as pd, numpy as np
 timedelta = pd.offsets.timedelta
 
@@ -22,7 +22,7 @@ def init_matplotlib():
 
 
 class CircleData(object):
-    def __init__(self, idx, fast_interval, slow_interval):
+    def __init__(self, idx, fast_interval, slow_interval, last_timestamp):
         self.idx = idx
         self.log = pd.Series()
         self.slow_log = pd.Series()
@@ -31,6 +31,10 @@ class CircleData(object):
         self.max_slow_gap = slow_interval * 1.1
         self.td8 = timedelta(seconds=8)
         self.td10m = timedelta(minutes=10)
+        self.last_timestamp = last_timestamp
+
+    def prune_log(self, time):
+        self.log = self.log[time:]
 
     def accumulated_consumption_fast(self, begin, end):
         if begin >= end:
@@ -108,9 +112,6 @@ class EnergyData(object):
         self.fast_interval = fast_interval
         self.circles = {}
 
-        self.load_logfiles(log_path, slow_log=False)
-        self.load_logfiles(slow_log_path, slow_log=True)
-
         self.std = 500 # this is a rather arbitrary value ..
         self.std_intervals = 15 # this as well :P
         self.interval_length = 10 # minutes
@@ -125,34 +126,15 @@ class EnergyData(object):
         if self.intervals_offset < 0:
             self.intervals_offset += self.intervals_per_day
 
-        last_t = start_time
-        for c in self.circles.values():
-            c.log.sort_index(inplace=True)
-            dupl = c.log.index.duplicated(keep='first')
-            if True in dupl:
-                # print("log-index has %i duplicates! (for circle %i)" % (sum(dupl), c.idx))
-                c.log = c.log[~dupl]
-
-            c.slow_log.sort_index(inplace=True)
-            dupl = c.slow_log.index.duplicated(keep='first')
-            if True in dupl:
-                # print("slow_log-index has %i duplicates! (for circle %i)" % (sum(dupl), c.idx))
-                c.slow_log = c.slow_log[~dupl]
-
-            c.last_timestamp = self.intervals_start
-
-            if len(c.log) > 0:
-                last_t = max(last_t, c.log.index[-1])
-            if len(c.slow_log) > 0:
-                last_t = max(last_t, c.slow_log.index[-1])
-
-        # self.last_t = last_t
-
+        cache = self.load_cache()
+        self.load_logfiles(log_path, slow_log=False, prune = self.interval2timestamp(len(self.intervals)) - timedelta(days=2,hours=1) if cache else None)
+        self.load_logfiles(slow_log_path, slow_log=True)
+        self.clean_logs()
+        last_t = self.get_last_t(start_time)
         n_intervals = max(self.timestamp2interval(last_t) + 1,0)
-        if self.load_cache():
+        if cache:
             p = ProgressBar('re-analyze last 24 hours', min(n_intervals, self.intervals_per_day))
             self.resize_intervals(n_intervals)
-            #nicht 10, sondern: self.intervals_per_day
             if reanalyze_intervals is None:
                 reanalyze_intervals = self.intervals_per_day
             for i in range(max(len(self.intervals)-reanalyze_intervals, 0), len(self.intervals)):
@@ -177,6 +159,35 @@ class EnergyData(object):
         self.calc_avg_consumption_per_interval()
 
         self.intervals_dirty = set()
+        self.prune_logs(last_t)
+
+    def prune_logs(self, now):
+        prune = now - timedelta(minutes = self.interval_length * 10)
+        for c in self.circles.values():
+            c.prune_log(prune)
+
+    def clean_logs(self):
+        for c in self.circles.values():
+            c.log.sort_index(inplace=True)
+            dupl = c.log.index.duplicated(keep='first')
+            if True in dupl:
+                # print("log-index has %i duplicates! (for circle %i)" % (sum(dupl), c.idx))
+                c.log = c.log[~dupl]
+
+            c.slow_log.sort_index(inplace=True)
+            dupl = c.slow_log.index.duplicated(keep='first')
+            if True in dupl:
+                # print("slow_log-index has %i duplicates! (for circle %i)" % (sum(dupl), c.idx))
+                c.slow_log = c.slow_log[~dupl]
+
+    def get_last_t(self, start_time):
+        last_t = start_time
+        for c in self.circles.values():
+            if len(c.log) > 0:
+                last_t = max(last_t, c.log.index[-1])
+            if len(c.slow_log) > 0:
+                last_t = max(last_t, c.slow_log.index[-1])
+        return last_t
 
     def update_intervals(self):
         if len(self.intervals_dirty) > 0:
@@ -382,16 +393,18 @@ class EnergyData(object):
         if idx in self.circles:
             return self.circles[idx]
         else:
-            c = CircleData(idx, self.fast_interval, self.slow_interval)
+            c = CircleData(idx, self.fast_interval, self.slow_interval, self.intervals_start)
             self.circles[idx] = c
             return c
 
     def circle_from_mac(self, mac):
         return self.circle(self.circle_idx_by_mac[mac])
 
-    def load_logfiles(self, path, slow_log):
+    def load_logfiles(self, path, slow_log, prune = None):
         item = 2 if slow_log else 1
         files = [ f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)) and f.endswith('.log') ]
+        if prune != None:
+            files = [f for f in files if (prune - dateutil.parser.parse(f[:10])).total_seconds() < 0]
         p = ProgressBar('loading logfiles' + (' (interval data)' if slow_log else ''), len(files))
         for fname in files:
             mac = fname[-10:-4]
