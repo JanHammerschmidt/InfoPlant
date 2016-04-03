@@ -869,6 +869,7 @@ class PWControl(object):
 
             if hour != prev_hour:
                 energy_data.save_cache()
+                energy_data.save_spikes()
                 energy_data.prune_logs(now)
                 if hour == 4:
                     self.sync_time()
@@ -900,7 +901,7 @@ try:
     if cfg_plant:
         schedule = Schedule(get_now(), main.schedule_callback)
 
-    energy_data = EnergyData(main.bymac, log_path, slow_log_path, energy_log_path, main.session_start, main.first_run)
+    energy_data = EnergyData(main.bymac, log_path, slow_log_path, energy_log_path, energy_log_path, main.session_start, main.first_run)
     # energy_data.update_day_start(get_now())
     if cfg_plot_data:
         energy_data.plot_current_and_historic_consumption()

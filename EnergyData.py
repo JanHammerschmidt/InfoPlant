@@ -10,6 +10,7 @@ import pandas as pd, numpy as np
 timedelta = pd.offsets.timedelta
 
 cfg_circle_intervals = False
+cfg_spike_consumption = 500
 
 
 def init_matplotlib():
@@ -105,12 +106,15 @@ class CircleData(object):
             self.consumption_per_interval[i] = sum(c) / len(c)
 
 class EnergyData(object):
-    def __init__(self, circle_idx_by_mac, log_path, slow_log_path, cache_path, start_time, first_run, slow_interval=10*60, fast_interval=10, reanalyze_intervals=None):
+    def __init__(self, circle_idx_by_mac, log_path, slow_log_path, cache_path, spikes_path, start_time, first_run, slow_interval=10*60, fast_interval=10, reanalyze_intervals=None):
         self.circle_idx_by_mac = circle_idx_by_mac
         self.cache_fname = path.join(cache_path, 'energy_data.json')
+        self.spikes_fname = path.join(spikes_path, 'spikes.json')
         self.slow_interval = slow_interval
         self.fast_interval = fast_interval
         self.circles = {}
+        self.spike_intervals, spike_times = [], []
+
 
         self.std = 500 # this is a rather arbitrary value ..
         self.std_intervals = 15 # this as well :P
@@ -130,6 +134,7 @@ class EnergyData(object):
         self.load_logfiles(log_path, slow_log=False, prune = self.interval2timestamp(len(self.intervals)) - timedelta(days=2,hours=1) if cache else None)
         self.load_logfiles(slow_log_path, slow_log=True)
         self.clean_logs()
+        self.load_spikes()
         last_t = self.get_last_t(start_time)
         n_intervals = max(self.timestamp2interval(last_t) + 1,0)
         if cache:
@@ -363,6 +368,16 @@ class EnergyData(object):
     def smooth_avg_consumption(self):
         self.consumption_per_interval_smoothed =  smooth(np.array(self.consumption_per_interval), 11)
 
+    def load_spikes(self):
+        try:
+            spike_times = json.load(open(self.spikes_fname))
+            self.spike_times = [pd.Timestamp(s) for s in spike_times]
+            self.spike_intervals = [self.timestamp2interval(t) for t in self.spike_times]
+        except Exception:
+            return False
+        print("successfully loaded spike intervals")
+        return True
+
     def load_cache(self):
         try:
             cache = json.load(open(self.cache_fname))
@@ -388,6 +403,10 @@ class EnergyData(object):
             cache['circle_intervals'] = {c.idx: c.intervals for c in self.circles.values()}
         with open(self.cache_fname, 'w') as f:
             json.dump(cache, f, default=lambda o: o.__dict__)
+
+    def save_spikes(self):
+        with open(self.spikes_fname, 'w') as f:
+            json.dump([t.isoformat() for t in self.spike_times], f)
 
     def circle(self, idx):
         if idx in self.circles:
@@ -434,12 +453,20 @@ class EnergyData(object):
         return (i/self.intervals_per_day) * self.intervals_per_day - self.intervals_offset + \
                (self.intervals_per_day if i%self.intervals_per_day > (self.intervals_per_day - self.intervals_offset) else 0)
 
+    def add_spike(self, time):
+        i = self.timestamp2interval(time)
+        if not i in self.spike_intervals:
+            self.spike_intervals.append(i)
+            self.spike_times.append(time)
+
     def add_value(self, mac, timestamp, value, slow_log, value_1s = None):
         c = self.circle_from_mac(mac)
         if slow_log:
             log = c.slow_log
         else:
             c.current_consumption = value if value_1s < 200 else value_1s
+            if c.current_consumption > cfg_spike_consumption:
+                self.add_spike(timestamp)
             if (timestamp - c.last_timestamp).total_seconds() < 8:
                 return False
             c.last_timestamp = timestamp
