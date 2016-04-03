@@ -248,6 +248,7 @@ class PWControl(object):
         self.statusdumpfname = debug_path+'pw-statusdump.json'
         self.session_fname = log_path+'session.json'
         self.logfiles = dict()
+        self.restarts = []
 
         #set log settings
         if sconf.has_key('log_comm'):
@@ -346,6 +347,8 @@ class PWControl(object):
             self.last_logs = []
         else:
             self.session_start = pd.Timestamp(session['start']).to_datetime()
+            if 'restarts' in session:
+                self.restarts = session['restarts']
             cfg_change = self.cfg != session['cfg']
             if cfg_change and False in [c.online for c in self.circles]:
                 raise RuntimeError("all circles must be sucessfully added on config change")
@@ -379,7 +382,7 @@ class PWControl(object):
     def write_session(self):
         lastlogs = [{'mac':c.mac,'last_log':c.last_log,'last_log_idx':c.last_log_idx,'last_log_ts':c.last_log_ts,'cum_energy':c.cum_energy} for c in self.circles]
         lastlogs += self.last_logs
-        data = {'start': self.session_start.isoformat(), 'cfg': self.cfg, 'last_logs': lastlogs}
+        data = {'start': self.session_start.isoformat(), 'cfg': self.cfg, 'last_logs': lastlogs, 'restarts': self.restarts}
         with open(self.session_fname, 'w') as f:
             json.dump(data, f, default=lambda o: o.__dict__)
 
@@ -736,6 +739,8 @@ class PWControl(object):
         day = now.day
         hour = now.hour
         minute = now.minute
+
+        self.restarts.append(now.isoformat())
 
         self.sync_time()
         self.dump_status()
