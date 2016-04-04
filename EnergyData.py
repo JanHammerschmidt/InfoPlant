@@ -360,10 +360,13 @@ class EnergyData(object):
     def calc_avg_consumption_per_interval(self):
         consumptions = [[] for _ in range(self.intervals_per_day)]
         for i,c in enumerate(self.intervals[:-1], start=self.intervals_offset): #skip the last interval (the one that is currently filled up)
-            consumptions[i % self.intervals_per_day].append(c)
+            consumptions[i % self.intervals_per_day].append((c, i in self.spike_intervals))
         for i,c in enumerate(consumptions):
             if len(c) > 0:
-                self.consumption_per_interval[i] = sum(c) / len(c)
+                no_spikes = values = [v[0] for v in c if v[1] != True]
+                if len(no_spikes) == 0: # we only have spike values in c
+                    values = [v[0] for v in c] # => use them anyway
+                self.consumption_per_interval[i] = sum(values) / len(values)
 
     def smooth_avg_consumption(self):
         self.consumption_per_interval_smoothed =  smooth(np.array(self.consumption_per_interval), 11)
