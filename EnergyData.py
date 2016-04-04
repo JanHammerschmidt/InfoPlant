@@ -33,6 +33,7 @@ class CircleData(object):
         self.td8 = timedelta(seconds=8)
         self.td10m = timedelta(minutes=10)
         self.last_timestamp = last_timestamp
+        self.consumption_last_interval = 0
 
     def prune_log(self, time):
         self.log = self.log[time:]
@@ -106,14 +107,16 @@ class CircleData(object):
             self.consumption_per_interval[i] = sum(c) / len(c)
 
 class EnergyData(object):
-    def __init__(self, circle_idx_by_mac, log_path, slow_log_path, cache_path, spikes_path, start_time, first_run, slow_interval=10*60, fast_interval=10, reanalyze_intervals=None):
+    def __init__(self, circle_idx_by_mac, log_path, slow_log_path, cache_path, spikes_path, start_time, first_run,
+                 cfg_print_data=True, slow_interval=10*60, fast_interval=10, reanalyze_intervals=None):
         self.circle_idx_by_mac = circle_idx_by_mac
         self.cache_fname = path.join(cache_path, 'energy_data.json')
         self.spikes_fname = path.join(spikes_path, 'spikes.json')
         self.slow_interval = slow_interval
         self.fast_interval = fast_interval
         self.circles = {}
-        self.spike_intervals, spike_times = [], []
+        self.spike_intervals, self.spike_times = [], []
+        self.cfg_print_data = cfg_print_data
 
 
         self.std = 500 # this is a rather arbitrary value ..
@@ -215,10 +218,6 @@ class EnergyData(object):
         if i >= 0:
             t = self.intervals_start + timedelta(minutes=i*self.interval_length)
             self.intervals[i] = self.accumulated_consumption(t - self.interval_td, t, i)
-
-    # def plot_current_and_historic_consumption(self):
-    #     plot_plotly()
-    #     self.plot_current_and_historic_consumption2()
 
     def plot_plotly_one_day(self):
         intervals_per_hour = self.intervals_per_hour
@@ -348,13 +347,17 @@ class EnergyData(object):
         plt.show() if wait else plt.pause(0.001)
 
     def accumulated_consumption(self, begin, end, i): # for an interval
-        if cfg_circle_intervals:
+        update_past_interval = i == len(self.intervals)-2
+        if cfg_circle_intervals or update_past_interval:
             t = []
             for c in self.circles.values():
                 cc = c.accumulated_consumption(begin, end)
-                c.intervals[i] = cc
+                if cfg_circle_intervals:
+                    c.intervals[i] = cc
+                if update_past_interval:
+                    c.consumption_last_interval = cc * 60 / self.interval_length
                 t.append(cc)
-            return sum(t) # TODO: this is not really necessary: exchange for the line below
+            return sum(t)
         return sum(c.accumulated_consumption(begin, end) for c in self.circles.values())
 
     def calc_avg_consumption_per_interval(self):
@@ -461,14 +464,18 @@ class EnergyData(object):
         if not i in self.spike_intervals:
             self.spike_intervals.append(i)
             self.spike_times.append(time)
+            if self.cfg_print_data:
+                print("add spike", i, time.isoformat())
 
     def add_value(self, mac, timestamp, value, slow_log, value_1s = None):
         c = self.circle_from_mac(mac)
         if slow_log:
             log = c.slow_log
         else:
-            c.current_consumption = value if value_1s < 200 else value_1s
-            if c.current_consumption > cfg_spike_consumption:
+            c.current_consumption = value
+            if value_1s > 100 and value_1s - value > 15:
+                c.current_consumption = value_1s
+            if c.current_consumption - c.consumption_last_interval > cfg_spike_consumption:
                 self.add_spike(timestamp)
             if (timestamp - c.last_timestamp).total_seconds() < 8:
                 return False

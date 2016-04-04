@@ -800,7 +800,8 @@ class PWControl(object):
             hour = now.hour
             minute = now.minute
 
-            schedule.update(now)
+            if cfg_plant:
+                schedule.update(now)
                 
             if minute != prev_minute:
                 self.log_recordings()
@@ -859,6 +860,7 @@ class PWControl(object):
                     energy_data.plot_plotly()
                 if cfg_plot_plant:
                     plant_plot.plot()
+                energy_data.save_spikes()
 
             new_offline = [(i+1,c.short_mac()) for i,c in enumerate(self.circles) if not c.online]
             if len(offline) > 0 and len(new_offline) == 0:
@@ -869,7 +871,6 @@ class PWControl(object):
 
             if hour != prev_hour:
                 energy_data.save_cache()
-                energy_data.save_spikes()
                 energy_data.prune_logs(now)
                 if hour == 4:
                     self.sync_time()
@@ -901,7 +902,7 @@ try:
     if cfg_plant:
         schedule = Schedule(get_now(), main.schedule_callback)
 
-    energy_data = EnergyData(main.bymac, log_path, slow_log_path, energy_log_path, energy_log_path, main.session_start, main.first_run)
+    energy_data = EnergyData(main.bymac, log_path, slow_log_path, energy_log_path, energy_log_path, main.session_start, main.first_run, cfg_print_data)
     # energy_data.update_day_start(get_now())
     if cfg_plot_data:
         energy_data.plot_current_and_historic_consumption()
