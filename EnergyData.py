@@ -464,8 +464,7 @@ class EnergyData(object):
         if not i in self.spike_intervals:
             self.spike_intervals.append(i)
             self.spike_times.append(time)
-            if self.cfg_print_data:
-                print("add spike", i, time.isoformat())
+            print("add spike:", time.isoformat())
 
     def add_value(self, mac, timestamp, value, slow_log, value_1s = None):
         c = self.circle_from_mac(mac)
