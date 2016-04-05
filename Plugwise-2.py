@@ -831,7 +831,8 @@ class PWControl(object):
             comparison_consumption = max(energy_data.comparison_consumption(), 1) # everything below 1W should be "good" by default ..
             diff = current_consumption - comparison_consumption
             if diff > 0:
-                leds = min(diff / energy_data.std_intervals, 1)
+                leds = diff / energy_data.std_intervals
+                leds = 2 if leds > 2 else min(leds, 1) # led == 2 if there is truly excessive consumption (2x std dev)
             else:
                 lower = max(comparison_consumption - max(energy_data.std_intervals,1), 0)
                 leds = max(diff / (comparison_consumption - lower), -1)
@@ -841,7 +842,10 @@ class PWControl(object):
                 if cfg_plant:
                     with schedule.lock:
                         if schedule.enabled:
-                            self.plant_set_color(self.plant_map2color(leds), 300)
+                            if leds == 2:
+                                plant.ledPulseRange(1,17,255,0,0,2000)
+                            else:
+                                self.plant_set_color(self.plant_map2color(leds), 300)
 
             if cfg_print_data and self.print_data_limiter.update(now.second):
                 print("cur: %.2f/%.2f %.2f/%.2f %.2f/%.2f %s" % (twig, leds, energy_data.current_consumption(), energy_data.comparison_consumption(),
