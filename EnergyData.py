@@ -33,7 +33,7 @@ class CircleData(object):
         self.td8 = timedelta(seconds=8)
         self.td10m = timedelta(minutes=10)
         self.last_timestamp = last_timestamp
-        self.consumption_last_interval = 0
+        self.consumption_last_interval = 0 # this is in W!
 
     def prune_log(self, time):
         self.log = self.log[time:]
@@ -325,22 +325,27 @@ class EnergyData(object):
         #     x = [:]
         consumption_per_interval = self.consumption_per_interval if day_start else [self.consumption_per_interval[(idx+i+self.intervals_offset)%self.intervals_per_day] for i in range(self.intervals_per_day)]
         consumption_per_interval_smoothed = self.consumption_per_interval_smoothed if day_start else [self.consumption_per_interval_smoothed[(idx+i+self.intervals_offset)%self.intervals_per_day] for i in range(self.intervals_per_day)]
+        if not accumulated:
+            consumption_per_interval = [self.interval_consumption2power(i) for i in consumption_per_interval]
+            consumption_per_interval_smoothed = [self.interval_consumption2power(i) for i in consumption_per_interval_smoothed]
         plt.plot(x, func(consumption_per_interval), label='historic consumption', color='blue')
         consumption_per_interval_smoothed = np.array(consumption_per_interval_smoothed)
         plt.plot(x, func(consumption_per_interval_smoothed), label='smoothed historic consumption', color='yellow')
-        plt.plot(x, func(consumption_per_interval_smoothed - self.std_intervals), label='smoothed historic consumption std', color='magenta')
-        plt.plot(x, func(consumption_per_interval_smoothed + self.std_intervals), label='smoothed historic consumption std', color='magenta')
+        plt.plot(x, func(consumption_per_interval_smoothed - self.std_intervals), label='smoothed historic consumption std', color='blue')
+        plt.plot(x, func(consumption_per_interval_smoothed + self.std_intervals), label='smoothed historic consumption std', color='blue')
 
         plt.plot(x, func(consumption_per_interval)*0.9, label='4/5th feedback', color='green')
         if accumulated:
             plt.ylim(0,2500)
             # plt.plot([x[-2]]*2,np.sum(self.consumption_per_interval)+np.array([self.std,-self.std]),'bo')
             plt.plot([x[-2]]*3,np.sum(self.consumption_per_interval)*0.9+np.array([self.std,0,-self.std]),'go')
+        else:
+            plt.ylim(None,300)
 
         i0 = self.day_start_interval(idx) if day_start else idx
         while i0 > 0:
             if i0 > 0 and idx-i0 > 0:
-                plt.plot(x[:idx-i0+1], func(self.intervals[i0:i0+len(x)]), label='current consumption', color='red')
+                plt.plot(x[:idx-i0+1], func([self.interval_consumption2power(i) for i in self.intervals[i0:i0+len(x)]]), color='red') #label='current consumption'
                 # plt.plot(x[:idx-i0+1], self.intervals[i0:], label='current consumption')
             i0 -= self.intervals_per_day
         plt.legend(loc='best')
@@ -355,7 +360,7 @@ class EnergyData(object):
                 if cfg_circle_intervals:
                     c.intervals[i] = cc
                 if update_past_interval:
-                    c.consumption_last_interval = cc * 60 / self.interval_length
+                    c.consumption_last_interval = self.interval_consumption2power(cc) # convert to W
                 t.append(cc)
             return sum(t)
         return sum(c.accumulated_consumption(begin, end) for c in self.circles.values())
@@ -496,7 +501,7 @@ class EnergyData(object):
 
     def comparison_consumption(self): # returns the (smoothed version of the) average consumption for the current time interval
         cmp_interval = self.cmp_interval(len(self.intervals)-1)
-        return self.consumption_per_interval_smoothed[cmp_interval] * (60 / self.interval_length) # convert from Wh to (average) W
+        return self.interval_consumption2power(self.consumption_per_interval_smoothed[cmp_interval]) # convert from Wh to (average) W
 
     def current_accumulated_consumption_24h(self):
         return sum(self.intervals[-self.intervals_per_day:])
@@ -532,23 +537,26 @@ class EnergyData(object):
             part = part_sec / self.interval_length_s
             return consumption - part * self.consumption_per_interval[cmp_interval]
 
+    def interval_consumption2power(self, wh): #converts wh to W based on interval length
+        return wh * 60 / self.interval_length
+
     def calculate_std(self):
         """calculates both the standard deviation of the so-far measured 24h consumptions
-            and of the distance of the (interval) consumptions from the average (and smoothed) consumptions
+            and of the distance of the (interval) consumptions from the average (and smoothed) consumptions (in W!)
         """
         # from 6:00 to 1:00
         start = (6-4)*60*60 / self.interval_length_s - self.intervals_offset
         end = (25-4)*60*60 / self.interval_length_s - self.intervals_offset
         v = [] # this is for the 24h consumptions
         v2 = [] # this is for the std of the interval consumptions
-        for i in range(start,end): # i: end-time of a day-interval
+        for i in range(start,end): # i: end-time of a day-interval / everything between 6:00 and 1:00
             for i1 in range(i,len(self.intervals)-1,self.intervals_per_day): # check all possible end-times (skip the very last interval)
                 if i1 >= 0:
                     i0 = i1 - self.intervals_per_day # i0: start of the day-interval
                     if i0 >= 0: # within measured time?
                         v.append(sum(self.intervals[i0:i1])) # 24h consumption
                     cmp_interval = self.cmp_interval(i1)
-                    d = self.intervals[i1] - self.consumption_per_interval_smoothed[cmp_interval]
+                    d = self.interval_consumption2power(self.intervals[i1] - self.consumption_per_interval_smoothed[cmp_interval]) # in W!
                     v2.append(d*d)
         if len(v) > 5:
             self.std = np.std(v)
