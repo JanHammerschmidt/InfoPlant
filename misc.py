@@ -14,7 +14,7 @@ class ProgressBar(object):
 
     def out(self):
         stdout.write('\r')
-        stdout.write("%s [%-20s] %d%%" % (self.name, '='*(self.c*20/self.nitems), self.c * 100/self.nitems))
+        stdout.write("%s [%-20s] %d%%" % (self.name, '='*int(self.c*20/self.nitems), self.c * 100/self.nitems))
         stdout.flush()
 
     def next(self):

@@ -440,7 +440,7 @@ class EnergyData(object):
         for fname in files:
             mac = fname[-10:-4]
             circle = self.circle_from_mac(mac)
-            f = codecs.open(path+fname, encoding="latin-1")
+            f = codecs.open(os.path.join(path,fname), encoding="latin-1")
             lines = [line.strip().split(',') for line in f.readlines()]
             series = pd.Series([np.max(np.float(l[item]),0) for l in lines], index=[pd.Timestamp(l[0]) for l in lines])
             if slow_log:
