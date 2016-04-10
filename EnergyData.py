@@ -507,22 +507,6 @@ class EnergyData(object):
     def current_accumulated_consumption_24h(self):
         return sum(self.intervals[-self.intervals_per_day:])
 
-    def comparison_avg_accumulated_daily_consumption(self, ts):
-        total_seconds = (ts - self.day_start).total_seconds()
-        full_intervals = min(int(total_seconds / self.interval_length_s), self.intervals_per_day)
-        part_interval = (total_seconds % self.interval_length_s) / self.interval_length_s
-        consumption = sum(self.consumption_per_interval[:full_intervals])
-        if full_intervals < self.intervals_per_day:
-            consumption += part_interval * self.consumption_per_interval[full_intervals]
-        return consumption
-
-    def comparison_avg_accumulated_consumption_24h_2(self, ts):
-        consumption = sum(self.consumption_per_interval) # avg total consumption
-        idx = self.timestamp2interval(ts) # index of current interval
-        i = self.cmp_interval(idx) # this is the idx of the "current" comparison interval that is being filled up
-        part_interval = (self.interval2timestamp(idx) - ts).total_seconds() / self.interval_length_s
-        return consumption - part_interval * self.consumption_per_interval[i]
-
     def comparison_avg_accumulated_consumption_24h(self, ts):
         current_interval = len(self.intervals)-1
         interval_ts = self.interval2timestamp(current_interval) # timestamp of current interval
