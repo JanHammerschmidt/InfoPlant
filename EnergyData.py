@@ -20,6 +20,7 @@ def init_matplotlib():
     import matplotlib
     matplotlib.style.use('ggplot')
     print(" done")
+    return plt
 
 
 class CircleData(object):
