@@ -818,15 +818,17 @@ class PWControl(object):
             diff = energy_data.current_accumulated_consumption_24h() - energy_data.comparison_avg_accumulated_consumption_24h(now)
             twig = np.clip(diff, -energy_data.std, energy_data.std) / energy_data.std
             plant_plot.twig.append((ts,twig)) # positive values mean: more consumption!
-            if self.twig_limiter.update(twig):
-                if cfg_print_data and (not cfg_plant or schedule.enabled):
-                    print("!!TWIG UPDATE!!", twig)
-                if cfg_plot_plant:
-                    plant_plot.twig_update.append((ts,twig))
-                if cfg_plant:
-                    with schedule.lock:
-                        if schedule.enabled:
+
+            if cfg_plant:
+                with schedule.lock:
+                    if schedule.enabled:
+                        if self.twig_limiter.update(twig):
+                            print("twig update", twig)
                             start_new_thread(self.plant_set_twigs, (twig,))
+            elif cfg_plot_plant:
+                if self.twig_limiter.update(twig):
+                    print("twig update", twig)
+                    plant_plot.twig_update.append((ts,twig))
 
             current_consumption = energy_data.current_consumption()
             comparison_consumption = max(energy_data.comparison_consumption(), 1) # everything below 1W should be "good" by default ..
@@ -837,16 +839,16 @@ class PWControl(object):
             else:
                 lower = max(comparison_consumption - max(energy_data.std_intervals,1), 0)
                 leds = max(diff / (comparison_consumption - lower), -1)
-            if self.led_limiter.update(leds):
-                if cfg_plot_plant:
-                    plant_plot.led.append((ts,leds))
-                if cfg_plant:
-                    with schedule.lock:
-                        if schedule.enabled:
+            if cfg_plant:
+                with schedule.lock:
+                    if schedule.enabled:
+                        if self.led_limiter.update(leds):
                             if leds == 2:
                                 plant.ledPulseRange(1,17,255,0,0,2000)
                             else:
                                 self.plant_set_color(self.plant_map2color(leds), 300)
+            elif cfg_plot_plant:
+                plant_plot.led.append((ts,leds))
 
             if cfg_print_data and self.print_data_limiter.update(now.second):
                 print("cur: %.2f/%.2f %.2f/%.2f %.2f/%.2f %s" % (twig, leds, energy_data.current_consumption(), energy_data.comparison_consumption(),
