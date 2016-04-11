@@ -332,6 +332,7 @@ class PWControl(object):
             last_logs = session['last_logs']
         except Exception:
             first_run = True
+            print("couldn't find previous session => this is a first run!")
 
         self.first_run = first_run
         if first_run:
