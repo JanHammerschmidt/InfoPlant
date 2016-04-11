@@ -465,12 +465,12 @@ class EnergyData(object):
         return (i/self.intervals_per_day) * self.intervals_per_day - self.intervals_offset + \
                (self.intervals_per_day if i%self.intervals_per_day > (self.intervals_per_day - self.intervals_offset) else 0)
 
-    def add_spike(self, time):
+    def add_spike(self, time, circle_idx):
         i = self.timestamp2interval(time)
         if not i in self.spike_intervals:
             self.spike_intervals.append(i)
             self.spike_times.append(time)
-            print("add spike:", time.isoformat())
+            print("add spike:", circle_idx+1, time.isoformat())
 
     def add_value(self, mac, timestamp, value, slow_log, value_1s = None):
         c = self.circle_from_mac(mac)
@@ -481,7 +481,7 @@ class EnergyData(object):
             if value_1s > 100 and value_1s - value > 15:
                 c.current_consumption = value_1s
             if c.current_consumption - c.consumption_last_interval > cfg_spike_consumption:
-                self.add_spike(timestamp)
+                self.add_spike(timestamp, c.idx)
             if (timestamp - c.last_timestamp).total_seconds() < 8:
                 return False
             c.last_timestamp = timestamp
