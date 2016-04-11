@@ -925,5 +925,5 @@ except Exception as e:
         f.write("%s: %s\n" % (datetime.now().isoformat(),  str(e)))
         f.write(traceback.format_exc())
         f.write('\n\n')
-    os.execl(sys.executable, "python", os.path.realpath(__file__))
+    os.execl(sys.executable, "python", '"' + os.path.realpath(__file__) + '"')
     raise
