@@ -5,6 +5,7 @@
 	"energy_log_path": "../log",
 	"serial": "/dev/tty.usbserial-A801O3JL",
 	"serial2": "/dev/tty.usbserial-A801O29W",
+	"crash_restart_quotation_marks": 0,
     "plot_data": 0,
     "plot_plant": 0,
  

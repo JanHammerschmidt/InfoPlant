@@ -36,6 +36,8 @@ cfg_plot_plotly = cfg['plot_plotly'] in enabled
 cfg_plot_plant = cfg['plot_plant'] in enabled
 cfg_plant = cfg['plant'] in enabled
 
+cfg_crash_restart_quotation_marks = cfg['crash_restart_quotation_marks'] in enabled if 'crash_restart_quotation_marks' in cfg else True
+
 if cfg_plot_plotly:
     init_plotly()
 
@@ -914,9 +916,9 @@ try:
     if cfg_plot_data:
         energy_data.plot_current_and_historic_consumption()
 except:
-    if cfg_plant:
-        plant_error()
-    raise
+   if cfg_plant:
+       plant_error()
+   raise
 
 try:
     main.run()
@@ -928,5 +930,8 @@ except Exception as e:
         f.write("%s: %s\n" % (datetime.now().isoformat(),  str(e)))
         f.write(traceback.format_exc())
         f.write('\n\n')
-    os.execl(sys.executable, "python", '"' + os.path.realpath(__file__) + '"')
+    path = os.path.realpath(__file__)
+    if cfg_crash_restart_quotation_marks:
+        path = '"' + path + '"'
+    os.execl(sys.executable, "python", path)
     raise
