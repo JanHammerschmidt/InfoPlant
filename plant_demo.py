@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 from time import sleep
-from misc import linear_interp_color
+from misc import linear_interp_color, linear_interp
 
 sys.path.append('/home/plant/plantlight/plantlight/rsb/remotePlantAPI')
 from remotePlantAPI import PlantAPI
@@ -24,7 +24,7 @@ def dc(v,t=8): # daily (past 24h) consumption
 
 
 def plant_map2color(v):
-    green = (0,255,0)
+    green = (40,120,0)
     red = (255,0,0)
     yellow = (255,220,0)
     v = np.clip(v,-1,1)
@@ -40,6 +40,6 @@ def plant_set_color(c=(0,0,0), t=1000):
 
 def cc(v): #current consumption
     if v == 2:
-        plant.ledPulseRange(1,17,255,0,0,2000)
+        plant.ledPulseRange(1,17,255,0,0,500)
     else:
-        self.plant_set_color(self.plant_map2color(v))
+        plant_set_color(plant_map2color(v))

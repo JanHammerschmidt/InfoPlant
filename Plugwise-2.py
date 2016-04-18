@@ -696,7 +696,7 @@ class PWControl(object):
             print("touch registered, but ignored due to schedule")
 
     def plant_map2color(self, v):
-        green = (0,255,0)
+        green = (40,120,0)
         red = (255,0,0)
         yellow = (255,220,0)
         v = np.clip(v,-1,1)
