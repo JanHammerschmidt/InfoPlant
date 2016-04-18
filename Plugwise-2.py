@@ -36,6 +36,8 @@ cfg_plot_plotly = cfg['plot_plotly'] in enabled
 cfg_plot_plant = cfg['plot_plant'] in enabled
 cfg_plant = cfg['plant'] in enabled
 
+four_fifth = 0.95
+
 cfg_crash_restart_quotation_marks = cfg['crash_restart_quotation_marks'] in enabled if 'crash_restart_quotation_marks' in cfg else True
 
 if cfg_plot_plotly:
@@ -814,7 +816,7 @@ class PWControl(object):
 
             now = get_now()
             ts = pd.Timestamp(now)
-            diff = energy_data.current_accumulated_consumption_24h() - energy_data.comparison_avg_accumulated_consumption_24h(now)
+            diff = energy_data.current_accumulated_consumption_24h() - four_fifth * energy_data.comparison_avg_accumulated_consumption_24h(now)
             twig = np.clip(diff, -energy_data.std, energy_data.std) / energy_data.std
             plant_plot.twig.append((ts,twig)) # positive values mean: more consumption!
 
@@ -830,7 +832,7 @@ class PWControl(object):
                     plant_plot.twig_update.append((ts,twig))
 
             current_consumption = energy_data.current_consumption()
-            comparison_consumption = max(energy_data.comparison_consumption(), 1) # everything below 1W should be "good" by default ..
+            comparison_consumption = max(four_fifth * energy_data.comparison_consumption(), 1) # everything below 1W should be "good" by default ..
             diff = current_consumption - comparison_consumption
             if diff > 0:
                 leds = diff / energy_data.std_intervals
