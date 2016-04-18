@@ -845,7 +845,7 @@ class PWControl(object):
                     if schedule.enabled:
                         if self.led_limiter.update(leds):
                             if leds == 2:
-                                plant.ledPulseRange(1,17,255,0,0,2000)
+                                plant.ledPulseRange(1,17,255,0,0,500)
                             else:
                                 self.plant_set_color(self.plant_map2color(leds), 300)
             elif cfg_plot_plant:
