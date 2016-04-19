@@ -70,7 +70,7 @@ def init_logger(logfname, appname='plugwise2py'):
     pw_logger = logging.getLogger(appname)
     log_level()
     # Add the log message handler to the logger
-    handler = logging.handlers.RotatingFileHandler(logfname, maxBytes=1000000, backupCount=5)
+    handler = logging.handlers.RotatingFileHandler(logfname, maxBytes=10000000, backupCount=5)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     pw_logger.addHandler(handler)
