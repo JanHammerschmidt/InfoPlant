@@ -772,7 +772,7 @@ class PWControl(object):
             error("PWControl.run(): Communication error in enable_joining")
 
         print("starting logging")
-        if cfg_plot_plotly:
+        if cfg_plot_plotly and os.name != 'nt':
             print("Open Safari")
             Popen(['open', '-a','Safari'])
         if cfg_plant:

@@ -3,7 +3,10 @@ from time import time
 
 def init_plotly():
     import locale
-    locale.setlocale(locale.LC_ALL,'de_DE')
+    try:
+        locale.setlocale(locale.LC_ALL,'de_DE')
+    except locale.Error:
+        locale.setlocale(locale.LC_ALL, 'deu_deu')
     from sys import stdout
     stdout.write("init plotly..")
     global plot, Scatter, Layout, Bar, Xaxis, YAxis, Legend, Marker, Annotation
