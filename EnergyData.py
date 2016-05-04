@@ -441,7 +441,12 @@ class EnergyData(object):
             mac = fname[-10:-4]
             circle = self.circle_from_mac(mac)
             f = codecs.open(os.path.join(path,fname), encoding="latin-1")
-            lines = [line.strip().split(',') for line in f.readlines()]
+            raw_lines = [line.strip() for line in f.readlines() if len(line) > 0]
+            raw_lines = [l.split(',') for l in raw_lines] #[line.strip().split(',') for line in f.readlines()]
+            num_items = 3 if slow_log else 2
+            lines = [l for l in raw_lines if len(l) == num_items]
+            if len(raw_lines) != len(lines):
+                print("WARNING: inconsistent log: %s" % fname)
             series = pd.Series([np.max(np.float(l[item]),0) for l in lines], index=[pd.Timestamp(l[0]) for l in lines])
             if slow_log:
                 circle.slow_log = circle.slow_log.append(series)
