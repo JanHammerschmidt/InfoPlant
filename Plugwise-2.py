@@ -383,7 +383,8 @@ class PWControl(object):
             self.last_logs = last_logs
 
         now = get_now()
-        if (now - self.session_start).total_seconds() <= 0:
+        if (now - self.session_start).total_seconds() < 0:
+            print("session start: %s" % self.session_start.isoformat)
             raise RuntimeError("error: current time is before session start! (%s)" % now.isoformat())
 
         self.setup_logfiles()
