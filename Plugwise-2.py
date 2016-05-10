@@ -243,7 +243,7 @@ class PWControl(object):
         if cfg_plant:
             start_new_thread(self.plant_set_twigs, (-1,))
 
-        self.twig_limiter = Limiter()
+        self.twig_limiter = Limiter(0.2, timedelta(hours=2))
         self.led_limiter = Limiter(0.05, timedelta(milliseconds=500))
         if cfg_print_data:
             self.print_data_limiter = Limiter(0, timedelta(seconds=20))
