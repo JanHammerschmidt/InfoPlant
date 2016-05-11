@@ -11,7 +11,7 @@ from subprocess import Popen
 from thread import start_new_thread
 from EnergyData import EnergyData, init_matplotlib
 from plotly_plot import init_plotly
-from misc import linear_interp_color, linear_interp, TimeTrigger
+from misc import linear_interp_color, linear_interp, TimeTrigger, TouchLimiter
 import time, calendar, os, logging, json, traceback
 import pandas as pd
 import numpy as np
@@ -246,6 +246,7 @@ class PWControl(object):
         self.twig_limiter = Limiter(0.2, timedelta(hours=2))
         self.led_limiter = Limiter(0.05, timedelta(milliseconds=500))
         self.sound_limiter = Limiter(0, timedelta(hours=1))
+        self.touch_limiter = TouchLimiter(self.plant_touch_sound_callback)
         if cfg_print_data:
             self.print_data_limiter = Limiter(0, timedelta(seconds=20))
         self.curfile = open(debug_path+'pwpower.log', 'w')
@@ -688,9 +689,19 @@ class PWControl(object):
         #a later call to self.test_offline will initialize the new circle(s)
         #self.test_offline()
 
+    def plant_touch_sound_callback(self):
+        if self.led_limiter.value > 0.05:
+            os.system('mpg123 /home/plant/electricity4.mp3 &')
+        else:
+            os.system('mpg123 /home/plant/r2d2_short.mp3 &')
+
+        self.sound_limiter.value = -999 # update sound_limiter
+        self.sound_limiter.last_update = get_now()
+
     def plant_touch_callback(self):
         ret = schedule.handle_touch()
-        # if schedule.enabled and not ret:
+        if schedule.enabled and not ret:
+            self.touch_limiter.touch(get_now())
         #     plant_lights()
         #     self.led_limiter.value = -999
         #     self.led_limiter.last_update = get_now() + timedelta(seconds=3)

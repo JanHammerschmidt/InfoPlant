@@ -1,7 +1,21 @@
 from sys import stdout
-from datetime import timedelta
+from datetime import datetime, timedelta
+import pandas as pd
 
-class ProgressBar(object):
+class TouchLimiter(object):
+    def __init__(self, callback, max_touches = 2, timeframe = timedelta(seconds=30)):
+        self.callback = callback
+        self.max_touches = max_touches
+        self.timeframe = timeframe
+        self.touches = pd.Series()
+
+    def touch(self, now):
+        self.touches[now] = True
+        if len(self.touches[now-self.timeframe:]) <= self.max_touches:
+            self.callback()
+
+
+class ProgressBar(object): # todo: with design
     def __init__(self, name, nitems):
         self.name = name
         self.c = 0
