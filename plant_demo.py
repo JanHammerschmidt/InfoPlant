@@ -1,7 +1,8 @@
-import sys
+import sys, os
 import numpy as np
 from time import sleep
-from misc import linear_interp_color, linear_interp
+from datetime import datetime
+from misc import linear_interp_color, linear_interp, TouchLimiter
 
 sys.path.append('/home/plant/plantlight/plantlight/rsb/remotePlantAPI')
 from remotePlantAPI import PlantAPI
@@ -43,3 +44,22 @@ def cc(v): #current consumption
         plant.ledPulseRange(1,17,255,0,0,500)
     else:
         plant_set_color(plant_map2color(v))
+
+def touch_callback():
+    os.system('mpg123 /home/plant/r2d2_short.mp3 &')
+    touch_limiter.callback = touch_callback2
+
+def touch_callback2():
+    os.system('mpg123 /home/plant/electricity4.mp3 &')
+    touch_limiter.callback = touch_callback
+
+touch_limiter = TouchLimiter(touch_callback)
+
+def touch_limiter_callback():
+    touch_limiter.touch(datetime.now())
+
+def sound():
+    plant.touch_callback = touch_limiter_callback
+
+
+
