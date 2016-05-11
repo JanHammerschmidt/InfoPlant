@@ -245,6 +245,7 @@ class PWControl(object):
 
         self.twig_limiter = Limiter(0.2, timedelta(hours=2))
         self.led_limiter = Limiter(0.05, timedelta(milliseconds=500))
+        self.sound_limiter = Limiter(0, timedelta(hours=1))
         if cfg_print_data:
             self.print_data_limiter = Limiter(0, timedelta(seconds=20))
         self.curfile = open(debug_path+'pwpower.log', 'w')
@@ -849,6 +850,9 @@ class PWControl(object):
                                 plant.ledPulseRange(1,17,255,0,0,500)
                             else:
                                 self.plant_set_color(self.plant_map2color(leds), 300)
+                        if leds > 0.05:
+                            if self.sound_limiter.update(now.second):
+                                os.system('mpg123 /home/plant/electricity4.mp3 &')
             elif cfg_plot_plant:
                 plant_plot.led.append((ts,leds))
 
