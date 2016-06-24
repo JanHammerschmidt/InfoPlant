@@ -1,12 +1,8 @@
 # Folders
-/nongit
 *.idea*
-/#weg
+\#weg
+sounds
+html
 
-#misc
-get-pip.py
-config/*.json
+# Files
 *.pyc
-*.log
-*.out
-*.pem
