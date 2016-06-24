@@ -9,19 +9,23 @@ from remotePlantAPI import PlantAPI
 plant = PlantAPI('/dev/ttyACM0', 9600)
 
 
-def dc(v,t=8): # daily (past 24h) consumption
-    v = np.clip(v,-1,1)
-    twigs = [(3,(6,8,12,16)),(1,(6,8,11,14)),(4,(5,7,10,14)),(2,(7,9,12,15))]
+def dc(v,t=8,s=-1): # daily (past 24h) consumption
+    if v != -2:
+        v = np.clip(v,-1,1)
+    twigs = [(3, (6, 8, 12, 16)), (1, (9, 10, 13, 17)), (4, (9, 10, 13, 17)), (2, (10, 9, 5, 2))]
+    if s != -1:
+        twigs = [t for t in twigs if t[0] == s]
     for i,(stop,low,mid,high) in twigs:
         if v > 0:
             d = linear_interp(mid,high,v)
-        elif v == -1:
+        elif v == -2:
             d = stop
         else:
             d = linear_interp(mid,low,-v)
         d = int(round(d))
         plant.tugDegree(i, d)
-        sleep(t)
+        if i < len(twigs):
+            sleep(t)
 
 
 def plant_map2color(v):
@@ -53,7 +57,7 @@ def touch_callback2():
     os.system('mpg123 /home/plant/electricity4.mp3 &')
     touch_limiter.callback = touch_callback
 
-touch_limiter = TouchLimiter(touch_callback)
+touch_limiter = TouchLimiter(touch_callback,999)
 
 def touch_limiter_callback():
     touch_limiter.touch(datetime.now())
