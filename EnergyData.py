@@ -17,8 +17,8 @@ def init_matplotlib():
     stdout.write("init matplotlib..")
     global plt
     import matplotlib.pyplot as plt
-    import matplotlib
-    matplotlib.style.use('ggplot')
+    # import matplotlib
+    plt.style.use('ggplot')
     print(" done")
     return plt
 
@@ -109,7 +109,10 @@ class CircleData(object):
 
 class EnergyData(object):
     def __init__(self, circle_idx_by_mac, log_path, slow_log_path, cache_path, spikes_path, start_time, first_run,
-                 cfg_print_data=True, slow_interval=10*60, fast_interval=10, reanalyze_intervals=None):
+                 cfg_print_data=True, slow_interval=10*60, fast_interval=10, reanalyze_intervals=None, load_cache_only=False, full_analyze=False):
+        if load_cache_only and full_analyze:
+            raise RuntimeError('option clash: load_cache_only and full_analyze')
+        self.prevent_interval_update = load_cache_only
         self.circle_idx_by_mac = circle_idx_by_mac
         self.cache_fname = path.join(cache_path, 'energy_data.json')
         self.spikes_fname = path.join(spikes_path, 'spikes.json')
@@ -135,22 +138,31 @@ class EnergyData(object):
             self.intervals_offset += self.intervals_per_day
 
         cache = self.load_cache()
-        self.load_logfiles(log_path, slow_log=False, prune = self.interval2timestamp(len(self.intervals)) - timedelta(days=2,hours=1) if cache else None)
-        self.load_logfiles(slow_log_path, slow_log=True)
-        self.clean_logs()
+        if load_cache_only and not cache:
+            raise RuntimeError('no cache found during cache-only initialization')
+        if not load_cache_only:
+            prune = self.interval2timestamp(len(self.intervals)) - timedelta(days=2,hours=1) if cache and not full_analyze else None
+            self.load_logfiles(log_path, slow_log=False, prune = prune)
+            self.load_logfiles(slow_log_path, slow_log=True)
+            self.clean_logs()
+            last_t = self.get_last_t(start_time)
+            n_intervals = max(self.timestamp2interval(last_t) + 1,0)
         self.load_spikes()
-        last_t = self.get_last_t(start_time)
-        n_intervals = max(self.timestamp2interval(last_t) + 1,0)
-        if cache:
-            p = ProgressBar('re-analyze last 24 hours', min(n_intervals, self.intervals_per_day))
-            self.resize_intervals(n_intervals)
-            if reanalyze_intervals is None:
-                reanalyze_intervals = self.intervals_per_day
-            for i in range(max(len(self.intervals)-reanalyze_intervals, 0), len(self.intervals)):
-                self.update_interval(i)
-                p.next()
+        if cache and not full_analyze:
+            if not load_cache_only:
+                p = ProgressBar('re-analyze last 24 hours', min(n_intervals, self.intervals_per_day))
+                self.resize_intervals(n_intervals)
+                if reanalyze_intervals is None:
+                    reanalyze_intervals = self.intervals_per_day
+                for i in range(max(len(self.intervals)-reanalyze_intervals, 0), len(self.intervals)):
+                    self.update_interval(i)
+                    p.next()
         else:
+            if full_analyze:
+                intervals_copy = self.intervals[:]
             self.intervals = [0] * n_intervals
+            if full_analyze and len(self.intervals) > len(intervals_copy):
+                intervals_copy += [0] * (len(self.intervals) - len(intervals_copy))
             if cfg_circle_intervals:
                 for c in self.circles.values():
                     c.intervals = self.intervals[:]
@@ -160,6 +172,11 @@ class EnergyData(object):
                 for i in range(len(self.intervals)):
                     self.update_interval(i)
                     p.next()
+            if full_analyze:
+                x = [self.interval2timestamp(i) for i in range(len(self.intervals))]
+                y = np.array(self.intervals) - np.array(intervals_copy)
+                plt.plot(x,y)
+                plt.show(block=True)
             if not first_run:
                 self.save_cache()
 
@@ -168,7 +185,8 @@ class EnergyData(object):
         self.calc_avg_consumption_per_interval()
 
         self.intervals_dirty = set()
-        self.prune_logs(last_t)
+        if not load_cache_only:
+            self.prune_logs(last_t)
 
     def prune_logs(self, now):
         prune = now - timedelta(minutes = self.interval_length * 10)
@@ -216,6 +234,8 @@ class EnergyData(object):
                     c.intervals += [0] * (n - len(c.intervals))
 
     def update_interval(self, i):
+        if self.prevent_interval_update:
+            raise RuntimeError('updating intervals despite update lock!')
         if i >= 0:
             t = self.intervals_start + timedelta(minutes=i*self.interval_length)
             self.intervals[i] = self.accumulated_consumption(t - self.interval_td, t, i)
@@ -447,7 +467,11 @@ class EnergyData(object):
             lines = [l for l in raw_lines if len(l) == num_items]
             if len(raw_lines) != len(lines):
                 print("WARNING: inconsistent log: %s" % fname)
-            series = pd.Series([np.max(np.float(l[item]),0) for l in lines], index=[pd.Timestamp(l[0]) for l in lines])
+            try:
+                series = pd.Series([np.max(np.float(l[item]),0) for l in lines], index=[pd.Timestamp(l[0]) for l in lines])
+            except Exception as e:
+                print("error loading %s" % fname)
+                raise e
             if slow_log:
                 circle.slow_log = circle.slow_log.append(series)
             else:
