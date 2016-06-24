@@ -726,7 +726,7 @@ class PWControl(object):
 
     def plant_set_twigs(self, v,t=8):
         v = np.clip(v,-1,1)
-        twigs = [(3,(6,8,12,16)),(1,(6,8,11,14)),(4,(5,7,10,14)),(2,(7,9,12,15))]
+        twigs = [(3,(6,8,12,16)),(1,(9,10,13,17)),(4,(8,10,13,17)),(2,(9,8,5,0))]
         for i,(stop,low,mid,high) in twigs:
             if v > 0:
                 d = linear_interp(mid,high,v)
