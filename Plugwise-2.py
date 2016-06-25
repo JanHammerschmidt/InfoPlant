@@ -465,7 +465,7 @@ class PWControl(object):
                     c.written_offline += 1
                 energy_data.report_offline(c.mac, ts_str)
             if not c.online:
-                # write_offline()
+                write_offline()
                 # print("should not happen!")
                 continue
 
