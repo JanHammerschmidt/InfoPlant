@@ -99,7 +99,7 @@ class Data:
         # dates = [0] + restart_intervals + [len(data.intervals)]
         # x = range(len(data.intervals))[::300]
         # plt.xticks(x, x)
-        plt.title('plot_all')
+        plt.title('plot_all: %s' % name)
 
 
     # def plot_cmp(self):
@@ -129,10 +129,11 @@ data = [
 ]
 
 plt = init_matplotlib()
-for d in data[1:]:
+for d in data:
     print(d.folder)
     d.load()
-    d.plot_all()
+    d.plot_all(d.folder)
+    # d.plot_daily()
     plt.show()
 
 
