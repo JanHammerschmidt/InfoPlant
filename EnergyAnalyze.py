@@ -48,15 +48,21 @@ class Data:
             else:
                 self.restarts = [self.restarts[r] for r in self._restarts]
         if 'restarts' in self.__dict__ and len(self.restarts) == 2:
-            self.print_week_info("week 1", data.interval2timestamp(0), self.restarts[0])
-            self.print_week_info("week 2", self.restarts[0], self.restarts[1], self.plant_first)
-            self.print_week_info("week 3", self.restarts[1], data.interval2timestamp(len(data.intervals)), not self.plant_first)
+            self.consumption = [0] * 3
+            self.consumption[0] = self.print_week_info("week 1", data.interval2timestamp(0), self.restarts[0])
+            self.consumption[1] = self.print_week_info("week 2", self.restarts[0], self.restarts[1], self.plant_first)
+            self.consumption[2] = self.print_week_info("week 3", self.restarts[1], data.interval2timestamp(len(data.intervals)), not self.plant_first)
+            # if not self.plant_first:
+            #     self.consumption[1], self.consumption[2] = self.consumption[2], self.consumption[1]
         else:
             print("TODO: restarts (%s)" % self.folder)
+        # self.daily_consumption
 
     def print_week_info(self, name, start, end, plant = False, cached=True):
-        print("%s: %.3fW (%s)%s" % (name, self.avg_W_per_timeframe(start, end, cached),
+        consumption = self.avg_W_per_timeframe(start, end, cached)
+        print("%s: %.3fW (%s)%s" % (name, consumption,
                                     str(end - start), " [PLANT]" if plant else ""))
+        return consumption
 
     def avg_W_per_timeframe(self, start, end, cached=True):
         if not cached:
@@ -128,6 +134,15 @@ for d in data[1:]:
     d.load()
     d.plot_all()
     plt.show()
+
+
+for d in data:
+    if not d.plant_first:
+       plt.plot(range(3), np.array(d.consumption)/d.consumption[0], label=d.folder)
+plt.xticks(range(3), ["baseline", "PLANT", "graphical"])
+plt.legend(loc='best')
+plt.show()
+
 
 # d = data[0]
 # d.load()
