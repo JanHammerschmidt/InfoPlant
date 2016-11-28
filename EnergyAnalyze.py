@@ -72,18 +72,20 @@ class Data:
         return data.interval_consumption2power(np.mean([data.intervals[i] for i in range(i_start, i_end)]))
 
     def plot_daily(self):
-        data, ts = self.data, self.ts
-        day_starts = [i for i, t in enumerate(ts) if t.hour == 0 and t.minute == data.interval_length]
-        x = [ts[i] for i in day_starts]
-        y = [sum(data.intervals[i:i + data.intervals_per_day]) / 24 for i in
-             day_starts[1:-1]]  # everything except the first and last day
-        y.insert(0, sum(data.intervals[:day_starts[0]]) / day_starts[0] * data.intervals_per_hour)
-        y.append(
-            sum(data.intervals[day_starts[-1]:]) / (len(data.intervals) - day_starts[-1]) * data.intervals_per_hour)
-        plt.bar(range(len(y)), y)
-        plt.xticks(range(len(x)), [i.strftime('%a, %d.%m') for i in x])
+        x = [t for t in self.ts if t.hour == 0 and t.minute == self.data.interval_length]
+        xd = x[:]  # [i - timedelta(hours=12) for i in x] # actual x-axis data for bar plot (first day)
+        y = [self.avg_W_per_timeframe(self.ts_begin, x[0])] #first day
+        xd.insert(0, x[0] - timedelta(hours=24))
+        for i in range(len(x)-1): #all full days
+            y.append(self.avg_W_per_timeframe(x[i], x[i+1]))
+        y.append(self.avg_W_per_timeframe(x[-1], self.ts_end)) #last day
+        r = self.restarts
+        b = [next(i for i,t in enumerate(xd[:-1]) if r[j] > t and r[j] < xd[i+1]) for j in range(2)]
+        #plt.bar(np.arange(len(y)), y)
+        plt.bar(xd, y)
+        # plt.xticks(np.arange(len(x)) + 1, [i.strftime('%a, %d.%m') for i in x])
 
-    def plot_all(self):
+    def plot_all(self, name):
         data, ts = self.data, self.ts
         x,y = ts, data.intervals
         plt.plot(x,y)
