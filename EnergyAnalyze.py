@@ -36,7 +36,9 @@ class Data:
         self.ts = [data.interval2timestamp(i) for i in range(len(data.intervals))] # timestamps of intervals
         self.ts_begin = data.interval2timestamp(0)
         self.ts_end = data.interval2timestamp(len(data.intervals))
-        if 'restarts' in self.session:
+        if self._restarts != None and type(self._restarts[0]) is str:
+            self.restarts = [timestamp(r) for r in self._restarts]
+        elif 'restarts' in self.session:
             self.restarts = [pd.Timestamp(ts) for ts in self.session['restarts']]
             if self._restarts == None:
                 print("restarts")
@@ -111,7 +113,7 @@ class Data:
     #             energy_data.plot_data(i, True)
 
 data = [
-    Data('1 Sabrina'),
+    Data('1 (Sabrina)', ['2016-03-24T15:00', '2016-03-31T15:30']),
     Data('2 (Tina)', [3,4], False),
     Data('3 (Philip)', [1,3], True),
     Data('4 (Sarah)', [2,3], False),
